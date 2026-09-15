@@ -99,6 +99,7 @@ function emptyMessage(): string {
 function patientRow(app: AppController, p: Patient, seenToday: Set<string>): HTMLElement {
   const paid = app.repo.paidDatesFor(p.id);
   const visits = app.repo.attendanceFor(p.id);
+  const total = visits.length;
   const dueCount = visits.filter((v) => !paid.has(v.date)).length;
   const sub = [p.treatment?.trim(), seenToday.has(p.id) ? "seen today" : null].filter(Boolean).join(" · ");
   return el("button", { class: "row", onclick: () => app.navigate({ name: "patient", id: p.id }) }, [
@@ -107,8 +108,10 @@ function patientRow(app: AppController, p: Patient, seenToday: Set<string>): HTM
       el("div", { class: "name" }, [p.name]),
       el("div", { class: "sub" }, [sub || p.phone || "—"]),
     ]),
-    dueCount > 0
-      ? el("span", { class: "badge due" }, [`${dueCount} due`])
-      : el("span", { class: "meta" }, [`${visits.length} visits`]),
+    // Due visits over total visits, e.g. "2/10". Red when any are due (unpaid).
+    el("div", { class: "count" + (dueCount > 0 ? " due" : "") }, [
+      el("span", { class: "count-value" }, [`${dueCount}/${total}`]),
+      el("span", { class: "count-label" }, [dueCount > 0 ? "due" : "visits"]),
+    ]),
   ]);
 }

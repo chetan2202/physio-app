@@ -62,6 +62,12 @@ main { flex: 1; padding: 16px; padding-bottom: calc(24px + env(safe-area-inset-b
 .badge { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--brand-tint); color: var(--brand-dark); }
 .badge.due { background: #fbeae6; color: var(--danger); }
 
+/* Due/total count on a patient row, e.g. "2/10". Red when any visit is unpaid. */
+.count { flex: none; text-align: right; line-height: 1.15; color: var(--muted); }
+.count-value { display: block; font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; color: var(--text); }
+.count-label { font-size: 11px; text-transform: uppercase; letter-spacing: .03em; }
+.count.due .count-value, .count.due .count-label { color: var(--danger); }
+
 /* Buttons */
 button.btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
