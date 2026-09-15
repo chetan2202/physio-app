@@ -78,6 +78,31 @@ Chosen to be lightweight, offline-first, and installable — matching the "runs 
   - Mark fees paid across a selectable set of visit days (Admin/HOD), with select-all/clear.
   - Local-first IndexedDB storage; installable offline PWA.
 
-## 7. Next step
+## 7. Accepted next (from v0 user feedback)
 
-**v0.1 — Google Drive sync**: admin configures a Drive folder; two-way sync of the local store enables the multi-device facility join (invite codes/QR already generate). This unlocks the cross-device roles described in the seed.
+See [requirements.md](./requirements.md) for full detail; IDs referenced below.
+
+### M6 — App icon (R42) — DONE
+- Replaced the generic plus/medical cross with an active human-figure mark (movement/wellness).
+
+### M7 — Patient segmentation for 60–100 patients (R8–R13)
+- Add `treatment` (condition) and `assignedMemberId` to the Patient model.
+- Add a **segment/filter bar** to the home list: All · Today · Assigned to me · by Treatment, plus name search.
+- **Today's schedule (R11):** confirm interpretation with the owner — (a) "seen today" from
+  attendance vs. (b) a forward-looking daily schedule model (`ScheduleEntry`). Target (b), ship (a) meanwhile.
+
+### M8 — Shared phone numbers (R7)
+- Guarantee phone is never unique; optional non-blocking "also used by <name>" hint on add.
+
+### M9 — Billing summary (R18)
+- Weekly/monthly totals per patient and facility.
+
+### v0.1 — Google Drive sync (R30) — the keystone
+Admin configures a Drive folder; two-way sync of the local store enables the multi-device facility
+join (invite codes/QR already generate). Build order:
+1. Google Cloud project + Drive API + OAuth Web Client (`drive.file` scope). (R30.1–R30.2)
+2. Folder selection + store folder id in facility settings. (R30.3)
+3. Refactor storage to an **append-only operation log + deterministic reducer** (sync-safe). (R30.4)
+4. On-Drive per-device op files, compressed; pull/merge/push sync engine with offline queue. (R30.5–R30.7)
+5. Cross-device membership + account model decision (shared account vs. per-user + folder share). (R30.8)
+6. Version gate, privacy (least scope, consider client-side encryption), and reducer/codec tests. (R30.9–R30.11)

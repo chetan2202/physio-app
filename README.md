@@ -72,6 +72,20 @@ npm run build   # type-check + production build into dist/
 - Flat icons only — **no emoji in icons or inside code**.
 - Design inspiration drawn from the Suno app.
 
+## Requirements & roadmap
+
+- Full, ID'd requirements live in [requirements.md](./requirements.md).
+- The milestone roadmap lives in [plan.md](./plan.md).
+
+Highlights of what's accepted next (from user feedback after installing v0):
+
+- **Patient segmentation (R10–R13)** — at 60–100 patients a flat list doesn't scale. Add
+  filtering/grouping by **treatment**, **today's schedule**, and **assigned staff**, plus search.
+- **Shared phone numbers (R7)** — more than one patient may have the same phone (families); the
+  app must never block or de-duplicate on phone.
+- **Better app icon (R42)** — done: replaced the generic plus with an active-figure mark.
+- **Google Drive sync (R30)** — the keystone that makes the app multi-device; see requirements.md §7.
+
 ## Status
 
-**v0 shipped and live.** Facility setup, members & roles (with invite code + QR generation), patients, attendance, and fee collection all work offline on-device. Cross-device sharing via Google Drive sync is the next milestone (v0.1). See [plan.md](./plan.md) for the roadmap.
+**v0 shipped and live.** Facility setup, members & roles (with invite code + QR generation), patients, attendance, and fee collection all work offline on-device. Cross-device sharing via Google Drive sync is the next milestone (v0.1).
