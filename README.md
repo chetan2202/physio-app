@@ -74,8 +74,7 @@ npm run build   # type-check + production build into dist/
 
 ## Requirements & roadmap
 
-- Full, ID'd requirements live in [requirements.md](./requirements.md).
-- The milestone roadmap lives in [plan.md](./plan.md).
+Full, ID'd requirements (including the roadmap and statuses) live in [requirements.md](./requirements.md).
 
 Highlights of what's accepted next (from user feedback after installing v0):
 
