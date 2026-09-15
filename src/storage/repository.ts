@@ -113,8 +113,35 @@ export class Repository {
     return patient;
   }
 
+  async updatePatient(id: string, patch: Partial<Omit<Patient, "id" | "facilityId" | "createdAt">>): Promise<void> {
+    const existing = this.patientById(id);
+    if (!existing) return;
+    const updated = { ...existing, ...patch };
+    await put("patients", updated);
+    this.snap.patients = this.snap.patients.map((p) => (p.id === id ? updated : p));
+  }
+
   patientById(id: string): Patient | undefined {
     return this.snap.patients.find((p) => p.id === id);
+  }
+
+  memberById(id: string | undefined): Member | undefined {
+    if (!id) return undefined;
+    return this.snap.members.find((m) => m.id === id);
+  }
+
+  // Patient ids with at least one visit on the given ISO date (for the "Today" segment).
+  patientIdsSeenOn(date: string): Set<string> {
+    const ids = new Set<string>();
+    for (const a of this.snap.attendance) if (a.date === date) ids.add(a.patientId);
+    return ids;
+  }
+
+  // Distinct, non-empty treatment values in use, sorted.
+  treatments(): string[] {
+    const set = new Set<string>();
+    for (const p of this.snap.patients) if (p.treatment?.trim()) set.add(p.treatment.trim());
+    return [...set].sort((a, b) => a.localeCompare(b));
   }
 
   // --- Attendance ------------------------------------------------------------

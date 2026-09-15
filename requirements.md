@@ -48,12 +48,11 @@ The app is **local-first and offline-first**, installable as a PWA, minimalist a
 - **R6** Admin/HOD add a patient: name, age (optional), phone, gender, address (optional). **Done**
 - **R7** **Phone numbers are NOT unique.** More than one patient may share the same number
   (families, shared household phones). The app must never block or de-duplicate on phone, and
-  should treat name as the primary human identifier while keeping a stable internal id. When a
-  number is already on file, the UI *may* show a non-blocking hint ("also used by <name>") but
-  must still allow the save. **Planned** (today's build already allows duplicates; the hint is pending)
+  should treat name as the primary human identifier while keeping a stable internal id. **Done**
+  (duplicates allowed; an optional "also used by <name>" hint on add is still pending)
 - **R8** Patient records carry a **treatment/condition** field (e.g. "Lower back", "Post-op knee",
-  "Cervical"). Used for grouping and daily planning. **Planned**
-- **R9** A patient may be **assigned to a staff member** (the therapist responsible). **Planned**
+  "Cervical"). Used for grouping and daily planning. **Done**
+- **R9** A patient may be **assigned to a staff member** (the therapist responsible). **Done**
 
 ## 5. Managing 60–100 patients — segmentation (NEW)
 
@@ -61,17 +60,15 @@ A flat list does not scale to 60–100 patients. The team needs to **bifurcate**
 person sees the slice relevant to them. This is a core usability requirement, not a nice-to-have.
 
 - **R10** **Segment by Treatment/condition** — group or filter patients by their treatment so
-  the HOD can brief staff per condition and see caseloads at a glance. **Planned**
-- **R11** **Today's schedule** — a per-day view of the patients expected/handled today, so staff
-  know who to attend to. Two interpretations to confirm with the owner:
-  - (a) *Seen today* — patients with a visit already marked today (derivable from existing data).
-  - (b) *Scheduled today* — a forward-looking appointment/plan set by Admin/HOD, which needs a
-    lightweight **daily schedule/appointment model** (new entity: `ScheduleEntry {patientId,
-    date, note}`). Recommended target: (b), with (a) available as a quick filter meanwhile. **Planned**
+  the HOD can brief staff per condition and see caseloads at a glance. **Done**
+- **R11** **Today's schedule** — a per-day view of the patients expected/handled today.
+  - (a) *Seen today* — patients with a visit already marked today. **Done** (shipped as the "Today" chip)
+  - (b) *Scheduled today* — a forward-looking plan set by Admin/HOD, needing a lightweight
+    **daily schedule model** (`ScheduleEntry {patientId, date, note}`). **Deferred** (awaiting owner's call)
 - **R12** **Assigned to me / by staff** — filter patients by the assigned staff member (see R9)
-  so each therapist manages their own caseload. **Planned**
-- **R13** The patient list must offer a **segment/filter bar** (All · Today · Assigned to me ·
-  by Treatment) plus quick search by name. Must stay fast and legible at 100+ patients. **Planned**
+  so each therapist manages their own caseload. **Done** ("Assigned to me" chip)
+- **R13** The patient list offers a **segment/filter bar** (All · Today · Assigned to me ·
+  by Treatment) plus quick name search. **Done** (list virtualization not yet needed at this scale)
 
 ## 6. Attendance & fees
 
@@ -137,7 +134,7 @@ synced through an **Admin-configured Google Drive folder**; there is no custom b
 - **R40** Installable PWA (manifest + service worker), works fully offline; data in IndexedDB. **Done**
 - **R41** Minimalist flat design; **flat SVG icons only, no emoji** in UI or code. **Done**
 - **R42** **App icon** must be a distinctive, well-crafted mark — **not a generic plus/medical
-  cross**. Use a physiotherapy/wellness motif (an active human figure). **Planned → in progress**
+  cross**. Use a physiotherapy/wellness motif (an active human figure). **Done**
 - **R43** Responsive down to ~360px; large tap targets; usable one-handed on a phone.  **Done**
 - **R44** Fast at 100+ patients (list virtualization/filtering as needed). **Planned** (see R13)
 - **R45** Deployed via GitHub Actions to GitHub Pages on every push to `main`. **Done**

@@ -40,9 +40,11 @@ export interface Patient {
   facilityId: string;
   name: string;
   age?: number;
-  phone: string;
+  phone: string; // NOT unique — multiple patients may share a number (families). See R7.
   gender: Gender;
   address?: string;
+  treatment?: string; // condition / treatment line, used for segmentation (R8)
+  assignedMemberId?: string; // therapist responsible (R9)
   createdAt: number;
 }
 

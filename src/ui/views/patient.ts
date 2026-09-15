@@ -2,8 +2,9 @@
 // paid over a selectable set of visit days (Admin/HOD).
 
 import type { AppController } from "../app.js";
-import { canMarkAttendance, canMarkFees } from "../../domain/types.js";
+import { canAddPatient, canMarkAttendance, canMarkFees } from "../../domain/types.js";
 import { el, icon, todayISO } from "../dom.js";
+import { openPatientForm } from "./patient-form.js";
 
 export function renderPatient(app: AppController, patientId: string): HTMLElement {
   const p = app.repo.patientById(patientId);
@@ -14,17 +15,23 @@ export function renderPatient(app: AppController, patientId: string): HTMLElemen
   const paid = app.repo.paidDatesFor(patientId);
   const dueVisits = visits.filter((v) => !paid.has(v.date));
 
+  const assignedTo = app.repo.memberById(p.assignedMemberId);
   const profile = el("div", { class: "card", style: "padding:16px" }, [
     el("div", { style: "display:flex;align-items:center;gap:12px" }, [
       el("div", { class: "avatar", style: "width:48px;height:48px;font-size:18px" }, [p.name.slice(0, 1).toUpperCase()]),
-      el("div", {}, [
+      el("div", { class: "grow" }, [
         el("div", { class: "name", style: "font-size:17px" }, [p.name]),
         el("div", { class: "sub" }, [
           [p.gender, p.age ? `${p.age} yrs` : null].filter(Boolean).join(" · "),
         ]),
       ]),
+      canAddPatient(role)
+        ? el("button", { class: "btn ghost", style: "width:auto", onclick: () => openPatientForm(app, p) }, ["Edit"])
+        : null,
     ]),
-    el("div", { class: "sub", style: "margin-top:12px" }, [icon("phone", 15), p.phone || "—"]),
+    p.treatment ? el("div", { class: "sub", style: "margin-top:12px" }, [icon("activity", 15), p.treatment]) : null,
+    assignedTo ? el("div", { class: "sub", style: "margin-top:6px" }, [icon("user", 15), `Assigned to ${assignedTo.name}`]) : null,
+    el("div", { class: "sub", style: "margin-top:6px" }, [icon("phone", 15), p.phone || "—"]),
     p.address ? el("div", { class: "sub", style: "margin-top:6px" }, [icon("building", 15), p.address]) : null,
   ]);
 

@@ -89,6 +89,20 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); bor
 .field-row > div { flex: 1; }
 .hint { color: var(--muted); font-size: 13px; margin: 8px 4px; }
 
+/* Search + segment chips */
+.searchbar { margin-bottom: 10px; }
+.searchbar input { padding: 11px 14px; }
+.chips-scroll {
+  display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 4px; margin: 0 -16px 4px; padding-left: 16px; padding-right: 16px;
+  scrollbar-width: none;
+}
+.chips-scroll::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 13px; font-weight: 550; cursor: pointer; white-space: nowrap;
+}
+.chip.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+
 /* Empty state */
 .empty { text-align: center; color: var(--muted); padding: 48px 24px; }
 .empty .icon { margin: 0 auto 12px; color: var(--border); }
