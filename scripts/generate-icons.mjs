@@ -1,7 +1,8 @@
 // Generate PWA icons (dependency-free) into public/icons/.
-// Physio is a physiotherapy-center app, so the icon is a white rounded medical cross
-// on a brand-teal tile. Flat, no emoji. Full-bleed, safe for both "any" and "maskable"
-// purposes. PNG encoded with Node zlib only.
+// Physio is a physiotherapy / rehab app, so the icon is a white "active figure" — a
+// person mid-stretch with arms raised and legs apart — on a brand-teal tile. It reads as
+// movement and wellbeing, not a generic medical cross. Flat, no emoji. Full-bleed, safe
+// for both "any" and "maskable" purposes. PNG encoded with Node zlib only.
 
 import zlib from "node:zlib";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -13,30 +14,45 @@ const OUT = join(dirname(fileURLToPath(import.meta.url)), "..", "public", "icons
 const TEAL = [13, 148, 136];
 const WHITE = [255, 255, 255];
 
-function roundedRectContains(px, py, x0, y0, x1, y1, r) {
-  if (px < x0 || px > x1 || py < y0 || py > y1) return false;
-  const nx = px < x0 + r ? x0 + r : px > x1 - r ? x1 - r : px;
-  const ny = py < y0 + r ? y0 + r : py > y1 - r ? y1 - r : py;
-  return Math.hypot(px - nx, py - ny) <= r;
+// Distance from point (px,py) to segment (ax,ay)-(bx,by). Used to draw rounded "capsule"
+// limbs: a pixel is inside a limb when its distance to the bone is <= the limb radius.
+function distToSegment(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay;
+  const len2 = dx * dx + dy * dy || 1;
+  let t = ((px - ax) * dx + (py - ay) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
 }
 
 function iconPixels(N) {
   const buf = Buffer.alloc(N * N * 4);
 
-  // A plus / medical cross made of two overlapping rounded bars, centred.
-  const cx = 0.5 * N, cy = 0.5 * N;
-  const arm = 0.30 * N;   // half-length of each bar
-  const half = 0.105 * N; // half-thickness of each bar
-  const r = 0.045 * N;    // corner radius
+  // Active human figure, coordinates as fractions of N.
+  const head = { x: 0.5 * N, y: 0.235 * N, r: 0.105 * N };
+  const shoulder = { x: 0.5 * N, y: 0.40 * N };
+  const hip = { x: 0.5 * N, y: 0.585 * N };
+  // Limbs as bones (start -> end): torso, two raised arms, two spread legs.
+  const bones = [
+    [shoulder.x, shoulder.y, hip.x, hip.y],       // torso
+    [shoulder.x, shoulder.y, 0.275 * N, 0.30 * N], // left arm (raised)
+    [shoulder.x, shoulder.y, 0.725 * N, 0.30 * N], // right arm (raised)
+    [hip.x, hip.y, 0.315 * N, 0.80 * N],           // left leg
+    [hip.x, hip.y, 0.685 * N, 0.80 * N],           // right leg
+  ];
+  const limb = 0.055 * N; // limb radius (half-thickness)
 
   for (let y = 0; y < N; y++) {
     for (let x = 0; x < N; x++) {
       const px = x + 0.5, py = y + 0.5;
       let col = TEAL;
 
-      const inVertical = roundedRectContains(px, py, cx - half, cy - arm, cx + half, cy + arm, r);
-      const inHorizontal = roundedRectContains(px, py, cx - arm, cy - half, cx + arm, cy + half, r);
-      if (inVertical || inHorizontal) col = WHITE;
+      let white = Math.hypot(px - head.x, py - head.y) <= head.r;
+      if (!white) {
+        for (const b of bones) {
+          if (distToSegment(px, py, b[0], b[1], b[2], b[3]) <= limb) { white = true; break; }
+        }
+      }
+      if (white) col = WHITE;
 
       const i = (y * N + x) * 4;
       buf[i] = col[0];

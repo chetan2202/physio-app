@@ -33,7 +33,7 @@ export function renderSetup(app: AppController): HTMLElement {
   }, ["Create facility"]) as HTMLButtonElement;
 
   return el("div", { class: "center" }, [
-    el("div", { class: "brandmark" }, [icon("building", 32)]),
+    el("div", { class: "brandmark" }, [icon("activity", 34)]),
     el("h2", {}, ["Set up your center"]),
     el("p", { class: "hint" }, ["Create your physiotherapy center to start adding patients and marking attendance."]),
     el("div", { style: "margin-top:16px" }, [
