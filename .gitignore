@@ -1,6 +1,29 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
+build/
+.vite/
+
+# Local / private data
+*.local.json
+secrets/
+*.key
+*.pem
+
+# Environment
 .env
-.env.local
+.env.*
+!.env.example
+
+# Logs
 *.log
+npm-debug.log*
+
+# Editor / OS
+.vscode/
+.idea/
 .DS_Store
+Thumbs.db
+*.swp

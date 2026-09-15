@@ -1,0 +1,22 @@
+{
+  "name": "physio-app",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Local-first physiotherapy center PWA — patients, attendance, and fees. Offline-first, installable.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "icons": "node scripts/generate-icons.mjs"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.6",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5",
+    "vite-plugin-pwa": "^0.21.2"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4"
+  }
+}
