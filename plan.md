@@ -69,6 +69,15 @@ Chosen to be lightweight, offline-first, and installable — matching the "runs 
 - Fee amounts: fixed per visit, or per-patient rate?
 - Offline conflict strategy once multiple devices sync via Drive.
 
-## 6. Next step
+## 6. Progress
 
-Start **M0**: scaffold the Vite + React + TS PWA and commit the initial project to the `chetan2202/physio-app` remote.
+- **M0–M5 done** and deployed. The stack shipped as **Vite + vanilla TypeScript** (matching the sibling `suno-app`) rather than React — lighter and framework-free. Live at https://chetan2202.github.io/physio-app/ via GitHub Pages.
+  - Facility setup (creator is Admin), members & role management, invite code + QR generation.
+  - Add patient (Admin/HOD); patient list with a "due" badge.
+  - Mark attendance (all roles) with optional time; attendance history.
+  - Mark fees paid across a selectable set of visit days (Admin/HOD), with select-all/clear.
+  - Local-first IndexedDB storage; installable offline PWA.
+
+## 7. Next step
+
+**v0.1 — Google Drive sync**: admin configures a Drive folder; two-way sync of the local store enables the multi-device facility join (invite codes/QR already generate). This unlocks the cross-device roles described in the seed.

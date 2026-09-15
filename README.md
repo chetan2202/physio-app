@@ -2,6 +2,18 @@
 
 A Progressive Web App (PWA) for managing a physiotherapy center — patients, daily attendance, and fee collection — built for a small clinic with a handful of staff and 60+ regular patients.
 
+## Install the app
+
+**Live app: https://chetan2202.github.io/physio-app/**
+
+It is an installable, offline-first PWA — no app store needed:
+
+- **Android / Chrome:** open the link, then menu (⋮) → *Add to Home screen* / *Install app*.
+- **iOS / Safari:** open the link, then Share → *Add to Home Screen*.
+- **Desktop / Chrome or Edge:** open the link, then the install icon in the address bar.
+
+Once installed it launches full-screen and works offline. Data is stored locally on the device (IndexedDB).
+
 ## Problem
 
 A physiotherapy center owner needs to:
@@ -33,6 +45,27 @@ A physiotherapy center owner needs to:
 
 **Deferred to v0.1:** Google Drive sync (the app will sync data with an admin-configured Google Drive folder).
 
+## Tech stack
+
+Built the same way as the sibling `suno-app` project:
+
+- **Vite + vanilla TypeScript** (no UI framework) — small, fast, dependency-light.
+- **vite-plugin-pwa** (Workbox) — service worker, offline shell, installable manifest.
+- **IndexedDB** — local-first storage (a thin, dependency-free wrapper).
+- **Flat inline SVG icons** — no emoji, no icon dependency.
+- **GitHub Pages** via GitHub Actions — every push to `main` builds and deploys.
+
+Layout: `src/domain` (types & rules), `src/storage` (IndexedDB + repository), `src/ui` (app shell + views). Icons are generated dependency-free by `scripts/generate-icons.mjs`.
+
+### Develop
+
+```bash
+npm install
+npm run icons   # regenerate PWA icons into public/icons
+npm run dev     # local dev server
+npm run build   # type-check + production build into dist/
+```
+
 ## Design principles
 
 - Minimalist, flat design.
@@ -41,4 +74,4 @@ A physiotherapy center owner needs to:
 
 ## Status
 
-Early development. See [plan.md](./plan.md) for the roadmap and milestones.
+**v0 shipped and live.** Facility setup, members & roles (with invite code + QR generation), patients, attendance, and fee collection all work offline on-device. Cross-device sharing via Google Drive sync is the next milestone (v0.1). See [plan.md](./plan.md) for the roadmap.
