@@ -2,11 +2,12 @@
 // Google Drive sync is deferred to v0.1; the model is kept sync-friendly (flat records
 // keyed by id, with a facilityId foreign key) so a sync layer can be added later.
 
-export type Role = "admin" | "hod" | "staff";
+// No HOD role: the Admin plays the senior/HOD role too. There can be more than one Admin.
+// (Patient is a separate, paid-tier app and not part of this member model.)
+export type Role = "admin" | "staff";
 
 export const ROLE_LABELS: Record<Role, string> = {
   admin: "Admin",
-  hod: "HOD",
   staff: "Staff",
 };
 
@@ -70,15 +71,16 @@ export interface Payment {
   markedByMemberId: string;
 }
 
-// Roles allowed to perform each action (see seed.md v0 functions).
+// Roles allowed to perform each action. Admin covers everything the HOD used to; Staff
+// only marks attendance.
 export function canAddPatient(role: Role): boolean {
-  return role === "admin" || role === "hod";
+  return role === "admin";
 }
 export function canMarkAttendance(role: Role): boolean {
-  return role === "admin" || role === "hod" || role === "staff";
+  return role === "admin" || role === "staff";
 }
 export function canMarkFees(role: Role): boolean {
-  return role === "admin" || role === "hod";
+  return role === "admin";
 }
 export function canManageMembers(role: Role): boolean {
   return role === "admin";

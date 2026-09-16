@@ -1,5 +1,5 @@
 // Patient detail: profile, mark attendance (any role), attendance history, and mark fees
-// paid over a selectable set of visit days (Admin/HOD).
+// paid over a selectable set of visit days (Admin).
 
 import type { AppController } from "../app.js";
 import { canAddPatient, canMarkAttendance, canMarkFees } from "../../domain/types.js";
