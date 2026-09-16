@@ -9,10 +9,12 @@ import type {
   Member,
   Patient,
   Payment,
+  PlanTemplate,
   Role,
 } from "../domain/types.js";
 import { newId, newInviteCode } from "../domain/ids.js";
 import { SEED_AILMENTS } from "../domain/seed-ailments.js";
+import { SEED_PLANS } from "../domain/seed-plans.js";
 import { getAll, put, remove } from "./idb.js";
 
 export interface Snapshot {
@@ -24,6 +26,7 @@ export interface Snapshot {
   attendance: Attendance[];
   payments: Payment[];
   ailments: Ailment[];
+  plans: PlanTemplate[];
 }
 
 // A full, portable backup of a clinic's data. Also the payload the Drive backup will
@@ -47,10 +50,11 @@ export class Repository {
     attendance: [],
     payments: [],
     ailments: [],
+    plans: [],
   };
 
   async load(): Promise<Snapshot> {
-    const [facilities, members, invites, patients, attendance, payments, ailments] = await Promise.all([
+    const [facilities, members, invites, patients, attendance, payments, ailments, plans] = await Promise.all([
       getAll<Facility>("facility"),
       getAll<Member>("members"),
       getAll<InviteCode>("invites"),
@@ -58,6 +62,7 @@ export class Repository {
       getAll<Attendance>("attendance"),
       getAll<Payment>("payments"),
       getAll<Ailment>("ailments"),
+      getAll<PlanTemplate>("plans"),
     ]);
     const merged = await this.ensureSeedAilments(ailments);
     this.snap = {
@@ -69,6 +74,7 @@ export class Repository {
       attendance,
       payments,
       ailments: merged,
+      plans,
     };
     return this.snap;
   }
@@ -205,6 +211,61 @@ export class Repository {
       if (name) set.add(name);
     }
     return [...set].sort((a, b) => a.localeCompare(b));
+  }
+
+  // --- Plan library (R64-R65) ------------------------------------------------
+
+  plans(): PlanTemplate[] {
+    return [...this.snap.plans].sort((a, b) => a.title.localeCompare(b.title));
+  }
+
+  planById(id: string | undefined): PlanTemplate | undefined {
+    if (!id) return undefined;
+    return this.snap.plans.find((p) => p.id === id);
+  }
+
+  plansAdopted(): boolean {
+    return this.snap.facility?.plansAdopted ?? false;
+  }
+
+  // The one-time seed choice (R65): adopt the starter plans, or start empty. Either way the
+  // library becomes the admin's own and is never re-seeded.
+  async adoptSeedPlans(withSeed: boolean): Promise<void> {
+    if (withSeed) {
+      for (const s of SEED_PLANS) {
+        const plan: PlanTemplate = { id: s.id, title: s.title, pointers: [...s.pointers], source: "seed" };
+        await put("plans", plan);
+        this.snap.plans = [...this.snap.plans.filter((p) => p.id !== plan.id), plan];
+      }
+    }
+    await this.setFacility({ plansAdopted: true });
+  }
+
+  async addPlan(title: string, pointers: string[]): Promise<PlanTemplate> {
+    const plan: PlanTemplate = { id: newId(), title: title.trim(), pointers, source: "custom" };
+    await put("plans", plan);
+    this.snap.plans = [...this.snap.plans, plan];
+    return plan;
+  }
+
+  async updatePlan(id: string, patch: Partial<Pick<PlanTemplate, "title" | "pointers">>): Promise<void> {
+    const existing = this.planById(id);
+    if (!existing) return;
+    const updated = { ...existing, ...patch };
+    await put("plans", updated);
+    this.snap.plans = this.snap.plans.map((p) => (p.id === id ? updated : p));
+  }
+
+  async deletePlan(id: string): Promise<void> {
+    await remove("plans", id);
+    this.snap.plans = this.snap.plans.filter((p) => p.id !== id);
+  }
+
+  private async setFacility(patch: Partial<Facility>): Promise<void> {
+    if (!this.snap.facility) return;
+    const updated = { ...this.snap.facility, ...patch };
+    await put("facility", updated);
+    this.snap.facility = updated;
   }
 
   // --- Attendance ------------------------------------------------------------

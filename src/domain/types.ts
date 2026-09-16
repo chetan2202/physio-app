@@ -26,7 +26,22 @@ export interface Facility {
   id: string;
   name: string;
   logoDataUrl?: string; // optional, small data URL
+  plansAdopted?: boolean; // the admin has made the one-time seed-plan choice (R65)
   createdAt: number;
+}
+
+// An item in the admin's treatment-plan library (R64-R65): a title + pointers.
+export interface PlanTemplate {
+  id: string;
+  title: string;
+  pointers: string[];
+  source: "seed" | "custom";
+}
+
+// A plan as assigned to a patient — a snapshot (not a live link to the template).
+export interface PatientPlan {
+  title: string;
+  pointers: string[];
 }
 
 export interface Member {
@@ -55,6 +70,7 @@ export interface Patient {
   address?: string;
   ailmentId?: string; // selected from the master ailment list (R62)
   ailmentNotes?: string; // optional free-text notes on the ailment (R62)
+  plan?: PatientPlan; // treatment plan snapshot (R64)
   treatment?: string; // legacy free-text condition (pre-M14); shown as fallback until edited
   assignedMemberId?: string; // therapist responsible (R9)
   createdAt: number;
