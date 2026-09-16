@@ -3,9 +3,10 @@
 // optional and never unique (R61).
 
 import type { AppController } from "../app.js";
-import type { Ailment, Gender, Patient } from "../../domain/types.js";
+import type { Gender, Patient } from "../../domain/types.js";
 import { ROLE_LABELS } from "../../domain/types.js";
 import { el } from "../dom.js";
+import { searchablePicker, type PickerItem } from "../searchable-picker.js";
 
 export function openPatientForm(app: AppController, existing?: Patient): void {
   const isEdit = !!existing;
@@ -19,24 +20,15 @@ export function openPatientForm(app: AppController, existing?: Patient): void {
   const gender = el("select", {}, (["male", "female", "other"] as Gender[]).map((g) =>
     el("option", { value: g, selected: existing?.gender === g }, [g[0]!.toUpperCase() + g.slice(1)]))) as HTMLSelectElement;
 
-  // Ailment: single-select from the master list, grouped by category, with an add-new row.
-  const ailmentSel = el("select", {}) as HTMLSelectElement;
-  const fillAilments = (selectedId: string) => {
-    const byCat = new Map<string, Ailment[]>();
-    for (const a of app.repo.ailments()) {
-      const c = a.category ?? "Custom";
-      (byCat.get(c) ?? byCat.set(c, []).get(c)!).push(a);
-    }
-    const groups = [...byCat.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-    ailmentSel.replaceChildren(
-      el("option", { value: "" }, ["— No ailment —"]),
-      ...groups.map(([cat, items]) =>
-        el("optgroup", { label: cat }, items.map((a) =>
-          el("option", { value: a.id }, [a.name])))),
-    );
-    ailmentSel.value = selectedId;
-  };
-  fillAilments(existing?.ailmentId ?? "");
+  // Ailment: searchable, category-filterable single-select from the master list (R62.1).
+  const ailmentItems = (): PickerItem[] =>
+    app.repo.ailments().map((a) => ({ id: a.id, name: a.name, category: a.category }));
+  const ailmentPicker = searchablePicker({
+    items: ailmentItems(),
+    selectedId: existing?.ailmentId,
+    placeholder: "Search ailment…",
+    noneLabel: "No ailment",
+  });
 
   const newAilment = input("text", "Add a new ailment");
   const addAilmentBtn = el("button", {
@@ -46,7 +38,7 @@ export function openPatientForm(app: AppController, existing?: Patient): void {
       if (!nm) return;
       const a = await app.repo.addAilment(nm);
       newAilment.value = "";
-      fillAilments(a.id);
+      ailmentPicker.setItems(ailmentItems(), a.id);
     },
   }, ["Add"]);
 
@@ -66,7 +58,7 @@ export function openPatientForm(app: AppController, existing?: Patient): void {
       const n = name.value.trim();
       if (!n) return;
       (save as HTMLButtonElement).disabled = true;
-      const ailmentId = ailmentSel.value || undefined;
+      const ailmentId = ailmentPicker.getValue() || undefined;
       const patch: Omit<Patient, "id" | "facilityId" | "createdAt"> = {
         name: n,
         age: age.value ? Number(age.value) : undefined,
@@ -93,7 +85,7 @@ export function openPatientForm(app: AppController, existing?: Patient): void {
       el("div", {}, [el("label", {}, ["Gender"]), gender]),
     ]),
     el("label", {}, ["Phone"]), phone,
-    el("label", {}, ["Ailment"]), ailmentSel,
+    el("label", {}, ["Ailment"]), ailmentPicker.el,
     el("div", { class: "field-row", style: "align-items:flex-end;gap:8px;margin-top:8px" }, [
       el("div", {}, [newAilment]),
       addAilmentBtn,

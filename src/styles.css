@@ -109,6 +109,13 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); bor
 }
 .chip.active { background: var(--brand); color: #fff; border-color: var(--brand); }
 
+/* Searchable picker (ailment / plan) */
+.picker-list { max-height: 240px; overflow-y: auto; border: 1px solid var(--border); border-radius: 12px; margin-top: 8px; background: var(--surface); }
+.picker-row { display: block; width: 100%; text-align: left; padding: 11px 14px; border: none; border-bottom: 1px solid var(--border); background: none; font: inherit; color: inherit; cursor: pointer; }
+.picker-row:last-child { border-bottom: none; }
+.picker-row.sel { background: var(--brand-tint); color: var(--brand-dark); font-weight: 600; }
+.picker-empty { padding: 12px 14px; color: var(--muted); font-size: 13px; }
+
 /* Empty state */
 .empty { text-align: center; color: var(--muted); padding: 48px 24px; }
 .empty .icon { margin: 0 auto 12px; color: var(--border); }
