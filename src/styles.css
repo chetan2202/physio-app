@@ -14,6 +14,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; }
 body {
   background: var(--bg);
@@ -114,6 +115,14 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); bor
   border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 13px; font-weight: 550; cursor: pointer; white-space: nowrap;
 }
 .chip.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+
+/* Segmented control (visit type) + weekday picker (schedule) */
+.segmented { display: flex; gap: 8px; }
+.seg { flex: 1; padding: 11px; border: 1px solid var(--border); background: var(--surface); border-radius: 12px; font: inherit; font-weight: 550; cursor: pointer; color: var(--text); }
+.seg.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+.weekday-row { display: flex; gap: 6px; margin-top: 8px; }
+.wd { flex: 1; aspect-ratio: 1; max-width: 46px; border: 1px solid var(--border); background: var(--surface); border-radius: 10px; font: inherit; font-weight: 600; cursor: pointer; color: var(--text); }
+.wd.active { background: var(--brand); color: #fff; border-color: var(--brand); }
 
 /* Searchable picker (ailment / plan) */
 .picker-list { max-height: 240px; overflow-y: auto; border: 1px solid var(--border); border-radius: 12px; margin-top: 8px; background: var(--surface); }

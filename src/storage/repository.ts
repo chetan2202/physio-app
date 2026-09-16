@@ -170,6 +170,20 @@ export class Repository {
     return this.snap.members.find((m) => m.id === id);
   }
 
+  // Family = other patients sharing the same non-empty phone number (R61).
+  familyOf(patient: Patient): Patient[] {
+    const phone = patient.phone?.trim();
+    if (!phone) return [];
+    return this.snap.patients.filter((p) => p.id !== patient.id && p.phone?.trim() === phone);
+  }
+
+  // Patients already on file with this phone (for the family hint when adding/editing).
+  patientsWithPhone(phone: string, excludeId?: string): Patient[] {
+    const norm = phone.trim();
+    if (!norm) return [];
+    return this.snap.patients.filter((p) => p.id !== excludeId && p.phone?.trim() === norm);
+  }
+
   // Patient ids with at least one visit on the given ISO date (for the "Today" segment).
   patientIdsSeenOn(date: string): Set<string> {
     const ids = new Set<string>();

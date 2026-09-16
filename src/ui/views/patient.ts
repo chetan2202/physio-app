@@ -2,7 +2,8 @@
 // per day (long-press or tap a day to edit both), plus a "no dues" action (R69-R71).
 
 import type { AppController } from "../app.js";
-import { canAddPatient, canMarkAttendance, canMarkFees } from "../../domain/types.js";
+import type { Patient } from "../../domain/types.js";
+import { canAddPatient, canMarkAttendance, canMarkFees, scheduleLabel } from "../../domain/types.js";
 import { el, icon, todayISO } from "../dom.js";
 import { openPatientForm } from "./patient-form.js";
 
@@ -49,8 +50,13 @@ export function renderPatient(app: AppController, patientId: string): HTMLElemen
       p.plan.pointers.length ? el("ul", { style: "margin:6px 0 0;padding-left:20px;color:var(--muted);font-size:13px" }, p.plan.pointers.map((pt) => el("li", {}, [pt]))) : null,
     ]) : null,
     assignedTo ? el("div", { class: "sub", style: "margin-top:6px" }, [icon("user", 15), `Assigned to ${assignedTo.name}`]) : null,
+    el("div", { class: "sub", style: "margin-top:6px" }, [
+      icon("calendar", 15),
+      `${p.visitType === "home" ? "Home visit" : "In-clinic"} · ${scheduleLabel(p.schedule)}`,
+    ]),
     el("div", { class: "sub", style: "margin-top:6px" }, [icon("phone", 15), p.phone || "—"]),
     p.address ? el("div", { class: "sub", style: "margin-top:6px" }, [icon("building", 15), p.address]) : null,
+    familyRow(app, p),
   ]);
 
   const noDues = canMarkFees(role) && dueVisits.length
@@ -67,6 +73,18 @@ export function renderPatient(app: AppController, patientId: string): HTMLElemen
     renderCalendar(app, patientId),
     legend(),
   ]);
+}
+
+// Other patients sharing this phone number (R61).
+function familyRow(app: AppController, p: Patient): HTMLElement | null {
+  const family = app.repo.familyOf(p);
+  if (!family.length) return null;
+  const links: Node[] = [];
+  family.forEach((f, i) => {
+    links.push(el("a", { href: "#", style: "color:var(--brand-dark)", onclick: (e: Event) => { e.preventDefault(); app.navigate({ name: "patient", id: f.id }); } }, [f.name]));
+    if (i < family.length - 1) links.push(document.createTextNode(", "));
+  });
+  return el("div", { class: "sub", style: "margin-top:6px" }, [icon("users", 15), el("span", {}, ["Family: "]), ...links]);
 }
 
 function renderCalendar(app: AppController, patientId: string): HTMLElement {

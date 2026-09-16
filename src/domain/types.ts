@@ -13,6 +13,15 @@ export const ROLE_LABELS: Record<Role, string> = {
 
 export type Gender = "male" | "female" | "other";
 
+export type VisitType = "clinic" | "home";
+export type ScheduleKind = "one-time" | "daily" | "weekly";
+
+// Recurring pattern (R67). weekdays: 0=Sun .. 6=Sat, used when kind === "weekly".
+export interface Schedule {
+  kind: ScheduleKind;
+  weekdays?: number[];
+}
+
 // Master ailment list entry (R62-R63). Seed entries ship with the app; the admin can add
 // their own (source: "custom").
 export interface Ailment {
@@ -71,9 +80,24 @@ export interface Patient {
   ailmentId?: string; // selected from the master ailment list (R62)
   ailmentNotes?: string; // optional free-text notes on the ailment (R62)
   plan?: PatientPlan; // treatment plan snapshot (R64)
+  visitType?: VisitType; // clinic or home visit (R66); default clinic
+  schedule?: Schedule; // recurring pattern (R67); default one-time
   treatment?: string; // legacy free-text condition (pre-M14); shown as fallback until edited
   assignedMemberId?: string; // therapist responsible (R9)
   createdAt: number;
+}
+
+// Weekday short labels, index 0=Sun .. 6=Sat.
+export const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+// A human-readable summary of a patient's schedule.
+export function scheduleLabel(s: Schedule | undefined): string {
+  if (!s || s.kind === "one-time") return "One-time";
+  if (s.kind === "daily") return "Daily";
+  const days = (s.weekdays ?? []).slice().sort((a, b) => a - b);
+  if (days.length === 7) return "Every day";
+  if (days.length === 0) return "Weekly";
+  return days.map((d) => WEEKDAYS[d]).join(", ");
 }
 
 export interface Attendance {
