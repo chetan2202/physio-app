@@ -5,7 +5,8 @@
 
 import QRCode from "qrcode";
 import type { AppController } from "../app.js";
-import { getDrivePort, syncAvailable, type DrivePort } from "../../sync/drive.js";
+import { getDrivePort, moduleAvailable, syncAvailable, type DrivePort } from "../../sync/drive.js";
+import { activate, deactivate, getActivation } from "../../sync/activation.js";
 import { syncNow } from "../../sync/port.js";
 import { el, icon } from "../dom.js";
 
@@ -19,10 +20,13 @@ function drivePort(): DrivePort | null {
 }
 
 export function renderSyncCard(app: AppController): HTMLElement {
-  if (!syncAvailable()) return notActivatedCard();
+  // Local-only build (closed module not bundled): direct the admin to the developer.
+  if (!moduleAvailable()) return contactCard();
+  // Module present but not activated: the admin enters the developer's activation code.
+  if (!syncAvailable()) return activationCard(app);
 
   const p = drivePort();
-  if (!p) return notActivatedCard();
+  if (!p) return activationCard(app);
 
   if (!p.isAuthed()) {
     return card([
@@ -40,6 +44,7 @@ export function renderSyncCard(app: AppController): HTMLElement {
     ]);
   }
 
+  const act = getActivation();
   return card([
     cardHeader("cloud", "Cloud sync"),
     el("div", { class: "sub", style: "margin-bottom:12px;color:var(--brand-dark)" }, [icon("check", 15), "Connected to Google Drive"]),
@@ -52,6 +57,10 @@ export function renderSyncCard(app: AppController): HTMLElement {
         },
       }, [icon("cloud"), "Sync now"]),
       el("button", { class: "btn secondary", style: "flex:1", onclick: () => shareStaffToken(app, p) }, [icon("users"), "Share with staff"]),
+    ]),
+    el("div", { class: "sub", style: "margin-top:12px;display:flex;justify-content:space-between;align-items:center" }, [
+      el("span", {}, [act?.code ? `Clinic code: ${act.code}` : ""]),
+      el("button", { class: "btn ghost", style: "width:auto;padding:2px 8px;color:var(--danger)", onclick() { deactivate(); app.render(); } }, ["Disconnect"]),
     ]),
   ]);
 }
@@ -83,8 +92,29 @@ function message(app: AppController, title: string, body: unknown): void {
   app.openSheet(title, [el("p", { class: "hint" }, [text]), el("button", { class: "btn", onclick: () => app.closeSheet() }, ["Close"])]);
 }
 
-// Local-only build (sync module not vendored): direct users to the developer to activate.
-function notActivatedCard(): HTMLElement {
+// Module present but not yet activated: the admin enters the developer's code (R30.1).
+function activationCard(app: AppController): HTMLElement {
+  const input = el("input", { type: "text", placeholder: "Paste activation code" }) as HTMLInputElement;
+  return card([
+    cardHeader("cloud", "Activate cloud sync"),
+    el("p", { class: "hint", style: "margin:0 0 12px" }, [
+      "Enter the activation code from the developer to turn on Google Drive sync for this clinic.",
+    ]),
+    input,
+    el("div", { style: "height:10px" }),
+    el("button", {
+      class: "btn",
+      onclick() {
+        try { activate(input.value); app.render(); }
+        catch (e) { message(app, "Invalid code", e); }
+      },
+    }, [icon("cloud"), "Activate cloud sync"]),
+    el("a", { class: "btn ghost", href: `mailto:${SUPPORT_EMAIL}?subject=Physio%20activation%20code`, style: "text-decoration:none;margin-top:8px" }, ["Request a code"]),
+  ]);
+}
+
+// Local-only build (closed sync module not bundled): direct users to the developer.
+function contactCard(): HTMLElement {
   return card([
     cardHeader("cloud", "Add staff & cloud sync"),
     el("p", { class: "hint", style: "margin:0 0 12px" }, [
