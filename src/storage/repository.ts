@@ -318,6 +318,42 @@ export class Repository {
     return paid;
   }
 
+  hasVisitOn(patientId: string, date: string): boolean {
+    return this.snap.attendance.some((a) => a.patientId === patientId && a.date === date);
+  }
+
+  // Remove all visits for a patient on a date (used by the calendar day editor).
+  async removeAttendanceOn(patientId: string, date: string): Promise<void> {
+    const toRemove = this.snap.attendance.filter((a) => a.patientId === patientId && a.date === date);
+    for (const a of toRemove) await remove("attendance", a.id);
+    this.snap.attendance = this.snap.attendance.filter((a) => !(a.patientId === patientId && a.date === date));
+  }
+
+  // Toggle a single day's paid status. Marking paid records a payment covering that day;
+  // unmarking removes the day from any payment that covers it (dropping empty payments).
+  async setDayPaid(patientId: string, date: string, paid: boolean): Promise<void> {
+    if (paid) {
+      if (!this.paidDatesFor(patientId).has(date)) await this.markFeesPaid(patientId, [date], 0);
+      return;
+    }
+    const next: Payment[] = [];
+    for (const p of this.snap.payments) {
+      if (p.patientId === patientId && p.coveredDates.includes(date)) {
+        const remaining = p.coveredDates.filter((d) => d !== date);
+        if (remaining.length) { const upd = { ...p, coveredDates: remaining }; await put("payments", upd); next.push(upd); }
+        else await remove("payments", p.id);
+      } else next.push(p);
+    }
+    this.snap.payments = next;
+  }
+
+  // Mark every outstanding (unpaid) visit day as paid — the "no dues" action (R70).
+  async markAllDuePaid(patientId: string): Promise<void> {
+    const paid = this.paidDatesFor(patientId);
+    const due = [...new Set(this.attendanceFor(patientId).map((v) => v.date).filter((d) => !paid.has(d)))];
+    if (due.length) await this.markFeesPaid(patientId, due, 0);
+  }
+
   // --- Backup / restore (R42) -----------------------------------------------
 
   exportData(): ExportBundle {

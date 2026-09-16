@@ -141,6 +141,25 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); bor
 .daygrid button.paid { opacity: .45; cursor: default; text-decoration: line-through; }
 .daygrid button.sel { background: var(--brand); color: #fff; border-color: var(--brand); }
 
+/* Month calendar (attendance + payment) */
+.calendar { padding: 12px; }
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.cal-head .iconbtn { color: var(--brand-dark); background: none; border: none; padding: 6px; cursor: pointer; }
+.cal-head .iconbtn[disabled] { opacity: .3; cursor: default; }
+.cal-title { font-weight: 650; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.cal-weekdays { margin-bottom: 6px; }
+.cal-weekday { text-align: center; font-size: 11px; color: var(--muted); font-weight: 600; }
+.cal-cell.blank { aspect-ratio: 1; }
+.cal-day { aspect-ratio: 1; border: 1.5px solid transparent; border-radius: 10px; background: var(--bg); color: var(--text); font: inherit; font-size: 13px; cursor: pointer; display: grid; place-items: center; user-select: none; -webkit-user-select: none; }
+.cal-day.today { border-color: var(--brand); font-weight: 700; }
+.cal-day.visit-paid { background: var(--brand); color: #fff; }
+.cal-day.visit-due { background: #fbeae6; color: var(--danger); font-weight: 650; }
+.cal-legend { display: flex; gap: 14px; align-items: center; margin: 12px 4px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.cal-legend .dot { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
+.dot.paid { background: var(--brand); }
+.dot.due { background: #e6a595; }
+
 .qr { display: block; margin: 12px auto; width: 200px; height: 200px; background: #fff; border-radius: 12px; padding: 8px; border: 1px solid var(--border); }
 .code { font-size: 22px; font-weight: 700; letter-spacing: .08em; text-align: center; color: var(--brand-dark); }
 footer { text-align: center; color: var(--muted); font-size: 12px; padding: 16px; }

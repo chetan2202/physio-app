@@ -1,10 +1,23 @@
-// Patient detail: profile, mark attendance (any role), attendance history, and mark fees
-// paid over a selectable set of visit days (Admin).
+// Patient detail: profile + a single month calendar carrying both attendance and payment
+// per day (long-press or tap a day to edit both), plus a "no dues" action (R69-R71).
 
 import type { AppController } from "../app.js";
 import { canAddPatient, canMarkAttendance, canMarkFees } from "../../domain/types.js";
 import { el, icon, todayISO } from "../dom.js";
 import { openPatientForm } from "./patient-form.js";
+
+// Displayed calendar month, per patient (survives re-renders; resets when the patient changes).
+let cal: { patientId: string; year: number; month: number } | null = null;
+function ensureCal(patientId: string): { patientId: string; year: number; month: number } {
+  if (!cal || cal.patientId !== patientId) {
+    const now = new Date();
+    cal = { patientId, year: now.getFullYear(), month: now.getMonth() };
+  }
+  return cal;
+}
+function ymd(y: number, m: number, d: number): string {
+  return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
 
 export function renderPatient(app: AppController, patientId: string): HTMLElement {
   const p = app.repo.patientById(patientId);
@@ -40,55 +53,118 @@ export function renderPatient(app: AppController, patientId: string): HTMLElemen
     p.address ? el("div", { class: "sub", style: "margin-top:6px" }, [icon("building", 15), p.address]) : null,
   ]);
 
-  const actions = el("div", { style: "display:flex;gap:10px;margin-top:16px" }, [
-    canMarkAttendance(role)
-      ? el("button", { class: "btn", onclick: () => openMarkAttendance(app, patientId) }, [icon("check"), "Mark visit"])
-      : null,
-    canMarkFees(role) && dueVisits.length
-      ? el("button", { class: "btn secondary", onclick: () => openMarkFees(app, patientId) }, [icon("wallet"), "Mark fees"])
-      : null,
-  ]);
-
-  const history = visits.length
-    ? el("div", { class: "card list" }, visits.map((v) =>
-        el("div", { class: "row", style: "cursor:default" }, [
-          el("div", { class: "avatar", style: "background:var(--brand-tint)" }, [icon("calendar", 18)]),
-          el("div", { class: "grow" }, [
-            el("div", { class: "name" }, [formatDate(v.date)]),
-            el("div", { class: "sub" }, [v.time ? `at ${v.time}` : "visit"]),
-          ]),
-          paid.has(v.date)
-            ? el("span", { class: "badge" }, ["paid"])
-            : el("span", { class: "badge due" }, ["due"]),
-        ])))
-    : el("div", { class: "empty" }, [icon("calendar", 40), el("div", {}, ["No visits recorded yet."])]);
+  const noDues = canMarkFees(role) && dueVisits.length
+    ? el("button", {
+        class: "btn secondary", style: "margin-top:16px",
+        async onclick() { await app.repo.markAllDuePaid(patientId); app.render(); },
+      }, [icon("wallet"), `Mark no dues (${dueVisits.length})`])
+    : null;
 
   return el("div", {}, [
     profile,
-    actions,
-    el("div", { class: "section-title" }, [`Attendance (${visits.length} visits · ${dueVisits.length} due)`]),
-    history,
+    noDues,
+    el("div", { class: "section-title" }, [`Attendance & payments (${visits.length} visits · ${dueVisits.length} due)`]),
+    renderCalendar(app, patientId),
+    legend(),
   ]);
 }
 
-function openMarkAttendance(app: AppController, patientId: string): void {
-  const date = el("input", { type: "date", value: todayISO() }) as HTMLInputElement;
-  const time = el("input", { type: "time" }) as HTMLInputElement;
-  const save = el("button", {
-    class: "btn",
-    async onclick() {
-      if (!date.value) return;
-      (save as HTMLButtonElement).disabled = true;
-      await app.repo.markAttendance(patientId, date.value, time.value || undefined);
-      app.closeSheet();
-      app.render();
-    },
-  }, ["Save visit"]);
+function renderCalendar(app: AppController, patientId: string): HTMLElement {
+  const c = ensureCal(patientId);
+  const daysInMonth = new Date(c.year, c.month + 1, 0).getDate();
+  const startWeekday = new Date(c.year, c.month, 1).getDay(); // 0 = Sun
+  const paid = app.repo.paidDatesFor(patientId);
+  const visitDates = new Set(app.repo.attendanceFor(patientId).map((v) => v.date));
+  const today = todayISO();
+  const now = new Date();
+  const isCurrentMonth = c.year === now.getFullYear() && c.month === now.getMonth();
+  const monthLabel = new Date(c.year, c.month, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
-  app.openSheet("Mark visit", [
-    el("label", {}, ["Date"]), date,
-    el("label", {}, ["Time (optional)"]), time,
-    el("div", { style: "height:16px" }), save,
+  const head = el("div", { class: "cal-head" }, [
+    el("button", { class: "iconbtn", "aria-label": "Previous month", onclick() { step(app, -1); } }, [icon("chevronLeft", 22)]),
+    el("div", { class: "cal-title" }, [monthLabel]),
+    el("button", { class: "iconbtn", "aria-label": "Next month", disabled: isCurrentMonth, onclick() { if (!isCurrentMonth) step(app, 1); } }, [icon("chevronRight", 22)]),
+  ]);
+
+  const weekdays = el("div", { class: "cal-grid cal-weekdays" }, ["S", "M", "T", "W", "T", "F", "S"].map((d) => el("div", { class: "cal-weekday" }, [d])));
+
+  const cells: Node[] = [];
+  for (let i = 0; i < startWeekday; i++) cells.push(el("div", { class: "cal-cell blank" }, []));
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = ymd(c.year, c.month, day);
+    const hasVisit = visitDates.has(date);
+    const isPaid = paid.has(date);
+    const cls = "cal-day"
+      + (hasVisit ? (isPaid ? " visit-paid" : " visit-due") : "")
+      + (date === today ? " today" : "");
+    const cell = el("button", { class: cls }, [String(day)]);
+    attachDayEdit(cell, () => openDayEditor(app, patientId, date));
+    cells.push(cell);
+  }
+
+  return el("div", { class: "card calendar" }, [head, weekdays, el("div", { class: "cal-grid" }, cells)]);
+}
+
+function step(app: AppController, delta: number): void {
+  if (!cal) return;
+  const d = new Date(cal.year, cal.month + delta, 1);
+  cal.year = d.getFullYear();
+  cal.month = d.getMonth();
+  app.render();
+}
+
+// Open the day editor on tap or long-press (long-press suppresses the trailing click).
+function attachDayEdit(cell: HTMLElement, onEdit: () => void): void {
+  let longFired = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  cell.addEventListener("pointerdown", () => { longFired = false; timer = setTimeout(() => { longFired = true; onEdit(); }, 450); });
+  const cancel = () => { if (timer) clearTimeout(timer); };
+  cell.addEventListener("pointerup", cancel);
+  cell.addEventListener("pointerleave", cancel);
+  cell.addEventListener("pointercancel", cancel);
+  cell.addEventListener("contextmenu", (e: Event) => e.preventDefault());
+  cell.addEventListener("click", () => { if (longFired) { longFired = false; return; } onEdit(); });
+}
+
+function legend(): HTMLElement {
+  return el("div", { class: "cal-legend" }, [
+    el("span", {}, [el("i", { class: "dot paid" }), "Paid visit"]),
+    el("span", {}, [el("i", { class: "dot due" }), "Due visit"]),
+    el("span", { class: "hint" }, ["Tap or long-press a day to edit"]),
+  ]);
+}
+
+// Edit both attendance and payment for a single day (R69).
+function openDayEditor(app: AppController, patientId: string, date: string): void {
+  const role = app.repo.get().currentMember?.role ?? "staff";
+  const present = app.repo.hasVisitOn(patientId, date);
+  const isPaid = app.repo.paidDatesFor(patientId).has(date);
+
+  const presentBtn = el("button", {
+    class: "btn" + (present ? "" : " secondary"),
+    disabled: !canMarkAttendance(role),
+    async onclick() {
+      if (present) await app.repo.removeAttendanceOn(patientId, date);
+      else await app.repo.markAttendance(patientId, date, undefined);
+      app.render();
+      openDayEditor(app, patientId, date);
+    },
+  }, [icon("check"), present ? "Present" : "Not present"]);
+
+  const paidBtn = el("button", {
+    class: "btn" + (isPaid ? "" : " secondary"),
+    disabled: !canMarkFees(role) || !present,
+    async onclick() {
+      await app.repo.setDayPaid(patientId, date, !isPaid);
+      app.render();
+      openDayEditor(app, patientId, date);
+    },
+  }, [icon("wallet"), isPaid ? "Paid" : "Unpaid"]);
+
+  app.openSheet(formatDate(date), [
+    el("label", {}, ["Attendance"]), presentBtn,
+    el("label", {}, ["Payment"]), paidBtn,
+    !present ? el("p", { class: "hint" }, ["Mark the patient present to record a payment for this day."]) : null,
   ]);
 }
 
