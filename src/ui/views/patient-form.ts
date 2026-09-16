@@ -44,6 +44,23 @@ export function openPatientForm(app: AppController, existing?: Patient): void {
 
   const ailmentNotes = el("textarea", { rows: "2", placeholder: "Notes on the ailment (optional)" }, [existing?.ailmentNotes ?? ""]) as HTMLTextAreaElement;
 
+  // Treatment plan (optional): pick from the library to prefill, then customise the
+  // snapshot stored on this patient (R64).
+  const planTitle = input("text", "Plan title (optional)", existing?.plan?.title);
+  const planPointers = el("textarea", { rows: "4", placeholder: "One step per line" }, [existing?.plan?.pointers.join("\n") ?? ""]) as HTMLTextAreaElement;
+  const planLibrary = app.repo.plans();
+  const planPicker = planLibrary.length
+    ? searchablePicker({
+        items: planLibrary.map((p) => ({ id: p.id, name: p.title })),
+        placeholder: "Pick a plan from your library…",
+        noneLabel: "Write a custom plan",
+        onChange: (id) => {
+          const t = app.repo.planById(id);
+          if (t) { planTitle.value = t.title; planPointers.value = t.pointers.join("\n"); }
+        },
+      })
+    : undefined;
+
   const assign = el("select", {}, [
     el("option", { value: "", selected: !existing?.assignedMemberId }, ["Unassigned"]),
     ...snap.members.map((m) =>
@@ -59,6 +76,9 @@ export function openPatientForm(app: AppController, existing?: Patient): void {
       if (!n) return;
       (save as HTMLButtonElement).disabled = true;
       const ailmentId = ailmentPicker.getValue() || undefined;
+      const planT = planTitle.value.trim();
+      const planPts = planPointers.value.split("\n").map((s) => s.trim()).filter(Boolean);
+      const plan = planT || planPts.length ? { title: planT || "Treatment plan", pointers: planPts } : undefined;
       const patch: Omit<Patient, "id" | "facilityId" | "createdAt"> = {
         name: n,
         age: age.value ? Number(age.value) : undefined,
@@ -67,6 +87,7 @@ export function openPatientForm(app: AppController, existing?: Patient): void {
         address: address.value.trim() || undefined,
         ailmentId,
         ailmentNotes: ailmentNotes.value.trim() || undefined,
+        plan,
         // Once an ailment is picked, drop the legacy free-text field.
         treatment: ailmentId ? undefined : existing?.treatment,
         assignedMemberId: assign.value || undefined,
@@ -91,6 +112,10 @@ export function openPatientForm(app: AppController, existing?: Patient): void {
       addAilmentBtn,
     ]),
     ailmentNotes,
+    el("label", {}, ["Treatment plan (optional)"]),
+    planPicker?.el ?? null,
+    planTitle,
+    planPointers,
     el("label", {}, ["Assigned to"]), assign,
     el("label", {}, ["Address (optional)"]), address,
     el("div", { style: "height:16px" }), save,

@@ -101,7 +101,7 @@ function patientRow(app: AppController, p: Patient, seenToday: Set<string>): HTM
   const visits = app.repo.attendanceFor(p.id);
   const total = visits.length;
   const dueCount = visits.filter((v) => !paid.has(v.date)).length;
-  const sub = [app.repo.ailmentNameFor(p), seenToday.has(p.id) ? "seen today" : null].filter(Boolean).join(" · ");
+  const sub = [app.repo.ailmentNameFor(p), p.plan?.title, seenToday.has(p.id) ? "seen today" : null].filter(Boolean).join(" · ");
   return el("button", { class: "row", onclick: () => app.navigate({ name: "patient", id: p.id }) }, [
     el("div", { class: "avatar" }, [p.name.slice(0, 1).toUpperCase()]),
     el("div", { class: "grow" }, [
