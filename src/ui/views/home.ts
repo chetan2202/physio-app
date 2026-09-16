@@ -16,10 +16,10 @@ export function renderHome(app: AppController): HTMLElement {
   const role = snap.currentMember?.role ?? "staff";
   const me = snap.currentMember;
   const seenToday = app.repo.patientIdsSeenOn(todayISO());
-  const treatments = app.repo.treatments();
+  const ailments = app.repo.ailmentsInUse();
 
-  // If a treatment segment was selected but that treatment no longer exists, fall back.
-  if (state.segment.startsWith("treat:") && !treatments.includes(state.segment.slice(6))) {
+  // If an ailment segment was selected but no longer exists, fall back.
+  if (state.segment.startsWith("ail:") && !ailments.includes(state.segment.slice(4))) {
     state.segment = "all";
   }
 
@@ -34,7 +34,7 @@ export function renderHome(app: AppController): HTMLElement {
   const buildChips = () => {
     const chips: { key: string; label: string }[] = [{ key: "all", label: "All" }, { key: "today", label: `Today (${seenToday.size})` }];
     if (me) chips.push({ key: "mine", label: "Assigned to me" });
-    for (const t of treatments) chips.push({ key: `treat:${t}`, label: t });
+    for (const t of ailments) chips.push({ key: `ail:${t}`, label: t });
     chipRow.replaceChildren(...chips.map((c) =>
       el("button", {
         class: "chip" + (state.segment === c.key ? " active" : ""),
@@ -49,7 +49,7 @@ export function renderHome(app: AppController): HTMLElement {
       .filter((p) => {
         if (state.segment === "today") return seenToday.has(p.id);
         if (state.segment === "mine") return me && p.assignedMemberId === me.id;
-        if (state.segment.startsWith("treat:")) return (p.treatment?.trim() ?? "") === state.segment.slice(6);
+        if (state.segment.startsWith("ail:")) return (app.repo.ailmentNameFor(p) ?? "") === state.segment.slice(4);
         return true;
       })
       .filter((p) => !q || p.name.toLowerCase().includes(q))
@@ -92,7 +92,7 @@ function emptyMessage(): string {
   if (state.query) return "No patients match your search.";
   if (state.segment === "today") return "No patients seen today yet.";
   if (state.segment === "mine") return "No patients assigned to you.";
-  if (state.segment.startsWith("treat:")) return "No patients in this treatment.";
+  if (state.segment.startsWith("ail:")) return "No patients with this ailment.";
   return "No patients yet.";
 }
 
@@ -101,7 +101,7 @@ function patientRow(app: AppController, p: Patient, seenToday: Set<string>): HTM
   const visits = app.repo.attendanceFor(p.id);
   const total = visits.length;
   const dueCount = visits.filter((v) => !paid.has(v.date)).length;
-  const sub = [p.treatment?.trim(), seenToday.has(p.id) ? "seen today" : null].filter(Boolean).join(" · ");
+  const sub = [app.repo.ailmentNameFor(p), seenToday.has(p.id) ? "seen today" : null].filter(Boolean).join(" · ");
   return el("button", { class: "row", onclick: () => app.navigate({ name: "patient", id: p.id }) }, [
     el("div", { class: "avatar" }, [p.name.slice(0, 1).toUpperCase()]),
     el("div", { class: "grow" }, [

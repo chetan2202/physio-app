@@ -29,7 +29,8 @@ export function renderPatient(app: AppController, patientId: string): HTMLElemen
         ? el("button", { class: "btn ghost", style: "width:auto", onclick: () => openPatientForm(app, p) }, ["Edit"])
         : null,
     ]),
-    p.treatment ? el("div", { class: "sub", style: "margin-top:12px" }, [icon("activity", 15), p.treatment]) : null,
+    app.repo.ailmentNameFor(p) ? el("div", { class: "sub", style: "margin-top:12px" }, [icon("activity", 15), app.repo.ailmentNameFor(p)!]) : null,
+    p.ailmentNotes ? el("div", { class: "sub", style: "margin-top:6px;color:var(--muted)" }, [p.ailmentNotes]) : null,
     assignedTo ? el("div", { class: "sub", style: "margin-top:6px" }, [icon("user", 15), `Assigned to ${assignedTo.name}`]) : null,
     el("div", { class: "sub", style: "margin-top:6px" }, [icon("phone", 15), p.phone || "—"]),
     p.address ? el("div", { class: "sub", style: "margin-top:6px" }, [icon("building", 15), p.address]) : null,

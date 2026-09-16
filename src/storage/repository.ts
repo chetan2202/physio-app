@@ -2,6 +2,7 @@
 // that persist to IndexedDB. The UI reads the snapshot and calls mutators, then re-renders.
 
 import type {
+  Ailment,
   Attendance,
   Facility,
   InviteCode,
@@ -11,6 +12,7 @@ import type {
   Role,
 } from "../domain/types.js";
 import { newId, newInviteCode } from "../domain/ids.js";
+import { SEED_AILMENTS } from "../domain/seed-ailments.js";
 import { getAll, put, remove } from "./idb.js";
 
 export interface Snapshot {
@@ -21,6 +23,7 @@ export interface Snapshot {
   patients: Patient[];
   attendance: Attendance[];
   payments: Payment[];
+  ailments: Ailment[];
 }
 
 // A full, portable backup of a clinic's data. Also the payload the Drive backup will
@@ -43,17 +46,20 @@ export class Repository {
     patients: [],
     attendance: [],
     payments: [],
+    ailments: [],
   };
 
   async load(): Promise<Snapshot> {
-    const [facilities, members, invites, patients, attendance, payments] = await Promise.all([
+    const [facilities, members, invites, patients, attendance, payments, ailments] = await Promise.all([
       getAll<Facility>("facility"),
       getAll<Member>("members"),
       getAll<InviteCode>("invites"),
       getAll<Patient>("patients"),
       getAll<Attendance>("attendance"),
       getAll<Payment>("payments"),
+      getAll<Ailment>("ailments"),
     ]);
+    const merged = await this.ensureSeedAilments(ailments);
     this.snap = {
       facility: facilities[0],
       currentMember: members.find((m) => m.isCurrentUser),
@@ -62,8 +68,23 @@ export class Repository {
       patients,
       attendance,
       payments,
+      ailments: merged,
     };
     return this.snap;
+  }
+
+  // Ensure every shipped seed ailment is present (idempotent upsert by id). New seed
+  // entries appear on app updates; the admin's custom ailments are untouched.
+  private async ensureSeedAilments(existing: Ailment[]): Promise<Ailment[]> {
+    const byId = new Map(existing.map((a) => [a.id, a]));
+    for (const s of SEED_AILMENTS) {
+      if (!byId.has(s.id)) {
+        const a: Ailment = { id: s.id, name: s.name, category: s.category, source: "seed" };
+        await put("ailments", a);
+        byId.set(a.id, a);
+      }
+    }
+    return [...byId.values()];
   }
 
   get(): Snapshot {
@@ -150,10 +171,39 @@ export class Repository {
     return ids;
   }
 
-  // Distinct, non-empty treatment values in use, sorted.
-  treatments(): string[] {
+  // --- Ailments (R62-R63) ----------------------------------------------------
+
+  ailments(): Ailment[] {
+    return [...this.snap.ailments].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  ailmentById(id: string | undefined): Ailment | undefined {
+    if (!id) return undefined;
+    return this.snap.ailments.find((a) => a.id === id);
+  }
+
+  // A patient's ailment display name — the selected ailment, or the legacy free-text.
+  ailmentNameFor(patient: Patient): string | undefined {
+    return this.ailmentById(patient.ailmentId)?.name ?? patient.treatment?.trim() ?? undefined;
+  }
+
+  async addAilment(name: string): Promise<Ailment> {
+    const trimmed = name.trim();
+    const existing = this.snap.ailments.find((a) => a.name.toLowerCase() === trimmed.toLowerCase());
+    if (existing) return existing;
+    const ailment: Ailment = { id: newId(), name: trimmed, source: "custom" };
+    await put("ailments", ailment);
+    this.snap.ailments = [...this.snap.ailments, ailment];
+    return ailment;
+  }
+
+  // Distinct ailment display names in use across patients, sorted (for the filter chips).
+  ailmentsInUse(): string[] {
     const set = new Set<string>();
-    for (const p of this.snap.patients) if (p.treatment?.trim()) set.add(p.treatment.trim());
+    for (const p of this.snap.patients) {
+      const name = this.ailmentNameFor(p);
+      if (name) set.add(name);
+    }
     return [...set].sort((a, b) => a.localeCompare(b));
   }
 

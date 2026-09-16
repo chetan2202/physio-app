@@ -13,6 +13,15 @@ export const ROLE_LABELS: Record<Role, string> = {
 
 export type Gender = "male" | "female" | "other";
 
+// Master ailment list entry (R62-R63). Seed entries ship with the app; the admin can add
+// their own (source: "custom").
+export interface Ailment {
+  id: string;
+  name: string;
+  category?: string;
+  source: "seed" | "custom";
+}
+
 export interface Facility {
   id: string;
   name: string;
@@ -41,10 +50,12 @@ export interface Patient {
   facilityId: string;
   name: string;
   age?: number;
-  phone: string; // NOT unique — multiple patients may share a number (families). See R7.
+  phone?: string; // optional, NOT unique — shared numbers group a family (R61)
   gender: Gender;
   address?: string;
-  treatment?: string; // condition / treatment line, used for segmentation (R8)
+  ailmentId?: string; // selected from the master ailment list (R62)
+  ailmentNotes?: string; // optional free-text notes on the ailment (R62)
+  treatment?: string; // legacy free-text condition (pre-M14); shown as fallback until edited
   assignedMemberId?: string; // therapist responsible (R9)
   createdAt: number;
 }
