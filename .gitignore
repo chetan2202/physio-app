@@ -5,6 +5,9 @@ requirements.md
 progress.md
 discussion.md
 
+# Vendored closed sync module (pulled from the private physio-sync repo at build)
+src/sync/vendor/
+
 # Dependencies
 node_modules/
 

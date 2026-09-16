@@ -7,8 +7,7 @@ import type { AppController } from "../app.js";
 import { ROLE_LABELS } from "../../domain/types.js";
 import type { ExportBundle } from "../../storage/repository.js";
 import { downloadText, el, icon, todayISO } from "../dom.js";
-
-const SUPPORT_EMAIL = "info@vyakaranlabs.com";
+import { renderSyncCard } from "./sync.js";
 
 export function renderMembers(app: AppController): HTMLElement {
   const snap = app.repo.get();
@@ -21,21 +20,6 @@ export function renderMembers(app: AppController): HTMLElement {
         el("div", { class: "sub" }, [ROLE_LABELS[m.role]]),
       ]),
     ])));
-
-  // Remark: adding staff and cloud sync are enabled on request by the developer.
-  const contact = el("div", { class: "card", style: "padding:16px" }, [
-    el("div", { style: "display:flex;align-items:center;gap:10px;margin-bottom:8px" }, [
-      icon("cloud", 22),
-      el("div", { class: "name", style: "font-size:16px" }, ["Add staff & cloud sync"]),
-    ]),
-    el("p", { class: "hint", style: "margin:0 0 12px" }, [
-      "This app currently runs on this device for the admin only. To add staff members and to use ",
-      "cloud sync of your data across devices, please contact the developer.",
-    ]),
-    el("a", { class: "btn", href: `mailto:${SUPPORT_EMAIL}?subject=Physio%20app%20-%20add%20staff%20%26%20cloud%20sync`, style: "text-decoration:none" }, [
-      icon("mail"), SUPPORT_EMAIL,
-    ]),
-  ]);
 
   return el("div", {}, [
     el("div", { class: "section-title" }, [`Members (${snap.members.length})`]),
@@ -52,7 +36,7 @@ export function renderMembers(app: AppController): HTMLElement {
       ]),
     ]),
     el("div", { class: "section-title" }, ["Team & sync"]),
-    contact,
+    renderSyncCard(app),
     el("div", { class: "section-title" }, ["Backup"]),
     backupCard(app),
   ]);

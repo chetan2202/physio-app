@@ -18,12 +18,28 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Optional: set these repo secrets to deploy the cloud-sync build. Without them the
+      # deploy is local-only (the sync module is private and not pulled).
+      SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+      VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+      # Vendor the private sync module only if a token is configured (else stub/local-only).
+      - name: Vendor private sync module
+        if: env.SYNC_TOKEN != ''
+        uses: actions/checkout@v4
+        with:
+          repository: chetan2202/physio-sync
+          token: ${{ env.SYNC_TOKEN }}
+          path: physio-sync-src
+      - name: Point pull-sync at the private module
+        if: env.SYNC_TOKEN != ''
+        run: echo "PHYSIO_SYNC_SRC=${{ github.workspace }}/physio-sync-src/src" >> "$GITHUB_ENV"
       - run: npm ci
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
