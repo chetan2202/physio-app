@@ -90,6 +90,16 @@ export interface Patient {
 // Weekday short labels, index 0=Sun .. 6=Sat.
 export const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
+// Is the patient scheduled (expected) on the given ISO date, per their recurring pattern?
+// One-time patients are not recurring, so they are never "scheduled" for a day (R71).
+export function isScheduledOn(s: Schedule | undefined, dateISO: string): boolean {
+  if (!s || s.kind === "one-time") return false;
+  if (s.kind === "daily") return true;
+  const [y, m, d] = dateISO.split("-").map(Number);
+  const weekday = new Date(y!, m! - 1, d!).getDay();
+  return (s.weekdays ?? []).includes(weekday);
+}
+
 // A human-readable summary of a patient's schedule.
 export function scheduleLabel(s: Schedule | undefined): string {
   if (!s || s.kind === "one-time") return "One-time";

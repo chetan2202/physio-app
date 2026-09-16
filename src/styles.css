@@ -102,6 +102,19 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); bor
 .field-row > div { flex: 1; }
 .hint { color: var(--muted); font-size: 13px; margin: 8px 4px; }
 
+/* Search row + collapsible multi-select filter panel */
+.filter-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+.filter-row input { flex: 1; padding: 11px 14px; }
+.filter-btn { position: relative; flex: none; width: 46px; height: 46px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--brand-dark); display: grid; place-items: center; cursor: pointer; }
+.filter-btn.active { background: var(--brand-tint); border-color: var(--brand); }
+.filter-btn .badge-count { position: absolute; top: -6px; right: -6px; background: var(--brand); color: #fff; font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; display: grid; place-items: center; padding: 0 4px; }
+.filter-summary { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 13px; color: var(--muted); }
+.filter-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px; margin-bottom: 10px; box-shadow: var(--shadow); }
+.filter-section { margin-bottom: 12px; }
+.filter-section:last-child { margin-bottom: 0; }
+.filter-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 7px; }
+.chips-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
+
 /* Search + segment chips */
 .searchbar { margin-bottom: 10px; }
 .searchbar input { padding: 11px 14px; }

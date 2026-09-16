@@ -1,100 +1,148 @@
-// Home: the patient list with a segment/filter bar (All / Today / Assigned to me /
-// by Treatment) and name search, so the team can manage 60-100 patients (R10-R13).
-// "Today" = patients with a visit marked today (seen today).
+// Home: patient list with a collapsible, multi-select filter panel + name search, so the
+// team can manage 60-100+ patients (R72-R73). Filters combine as OR within a dimension and
+// AND across dimensions. The panel hides for full-screen browsing; the filter icon reopens it.
 
 import type { AppController } from "../app.js";
-import { canAddPatient } from "../../domain/types.js";
+import { canAddPatient, isScheduledOn } from "../../domain/types.js";
 import type { Patient } from "../../domain/types.js";
 import { el, icon, todayISO } from "../dom.js";
 import { openPatientForm } from "./patient-form.js";
 import { openMarkFees } from "./patient.js";
 
-// Segment survives full re-renders (module singleton). `all` | `today` | `mine` | `treat:<name>`.
-const state = { segment: "all", query: "" };
+// Filter + search state (module singleton; survives re-renders).
+const state = {
+  query: "",
+  panelOpen: false,
+  ailments: new Set<string>(), // ailment display names (OR)
+  visits: new Set<string>(),   // "clinic" | "home" (OR)
+  assignedToMe: false,
+  seenToday: false,
+  scheduledToday: false,
+  hasDues: false,
+};
+
+function activeCount(): number {
+  return state.ailments.size + state.visits.size
+    + (state.assignedToMe ? 1 : 0) + (state.seenToday ? 1 : 0)
+    + (state.scheduledToday ? 1 : 0) + (state.hasDues ? 1 : 0);
+}
+function clearFilters(): void {
+  state.ailments.clear(); state.visits.clear();
+  state.assignedToMe = state.seenToday = state.scheduledToday = state.hasDues = false;
+}
+function toggleSet(set: Set<string>, v: string): void {
+  if (set.has(v)) set.delete(v); else set.add(v);
+}
 
 export function renderHome(app: AppController): HTMLElement {
   const snap = app.repo.get();
   const role = snap.currentMember?.role ?? "staff";
   const me = snap.currentMember;
-  const seenToday = app.repo.patientIdsSeenOn(todayISO());
-  const ailments = app.repo.ailmentsInUse();
+  const today = todayISO();
+  const seenTodaySet = app.repo.patientIdsSeenOn(today);
+  const ailmentsInUse = app.repo.ailmentsInUse();
 
-  // If an ailment segment was selected but no longer exists, fall back.
-  if (state.segment.startsWith("ail:") && !ailments.includes(state.segment.slice(4))) {
-    state.segment = "all";
-  }
+  // Drop ailment filters that no longer apply.
+  for (const a of [...state.ailments]) if (!ailmentsInUse.includes(a)) state.ailments.delete(a);
+
+  const dueCountFor = (p: Patient): number => {
+    const paid = app.repo.paidDatesFor(p.id);
+    return app.repo.attendanceFor(p.id).filter((v) => !paid.has(v.date)).length;
+  };
 
   const search = el("input", {
-    type: "search",
-    placeholder: "Search patients by name",
-    value: state.query,
+    type: "search", placeholder: "Search patients by name", value: state.query,
     oninput: (e: Event) => { state.query = (e.target as HTMLInputElement).value; renderList(); },
   }) as HTMLInputElement;
 
-  const chipRow = el("div", { class: "chips-scroll" }, []);
-  const buildChips = () => {
-    const chips: { key: string; label: string }[] = [{ key: "all", label: "All" }, { key: "today", label: `Today (${seenToday.size})` }];
-    if (me) chips.push({ key: "mine", label: "Assigned to me" });
-    for (const t of ailments) chips.push({ key: `ail:${t}`, label: t });
-    chipRow.replaceChildren(...chips.map((c) =>
-      el("button", {
-        class: "chip" + (state.segment === c.key ? " active" : ""),
-        onclick: () => { state.segment = c.key; buildChips(); renderList(); },
-      }, [c.label])));
+  const filterBtn = el("button", { class: "filter-btn", "aria-label": "Filters", onclick: () => { state.panelOpen = !state.panelOpen; refresh(); } }, []);
+  const summary = el("div", { class: "filter-summary" }, []);
+  const panel = el("div", { class: "filter-panel" }, []);
+  const listWrap = el("div", {}, []);
+
+  const chip = (label: string, active: boolean, onclick: () => void): HTMLElement =>
+    el("button", { type: "button", class: "chip" + (active ? " active" : ""), onclick }, [label]);
+  const section = (label: string, chips: (Node | null)[]): HTMLElement =>
+    el("div", { class: "filter-section" }, [el("div", { class: "filter-label" }, [label]), el("div", { class: "chips-wrap" }, chips)]);
+
+  const buildFilterBtn = () => {
+    const n = activeCount();
+    filterBtn.className = "filter-btn" + (n || state.panelOpen ? " active" : "");
+    filterBtn.replaceChildren(icon("filter", 20), ...(n ? [el("span", { class: "badge-count" }, [String(n)])] : []));
   };
 
-  const listWrap = el("div", {}, []);
+  const buildSummary = () => {
+    const n = activeCount();
+    summary.hidden = state.panelOpen || n === 0;
+    if (summary.hidden) return;
+    summary.replaceChildren(
+      el("span", {}, [`${n} filter${n > 1 ? "s" : ""} active`]),
+      el("button", { class: "btn ghost", style: "width:auto;padding:2px 8px", onclick: () => { clearFilters(); refresh(); } }, ["Clear"]),
+    );
+  };
+
+  const buildPanel = () => {
+    panel.hidden = !state.panelOpen;
+    if (panel.hidden) return;
+    const parts: Node[] = [
+      section("Quick", [
+        me ? chip("Assigned to me", state.assignedToMe, () => { state.assignedToMe = !state.assignedToMe; refresh(); }) : null,
+        chip("Seen today", state.seenToday, () => { state.seenToday = !state.seenToday; refresh(); }),
+        chip("Scheduled today", state.scheduledToday, () => { state.scheduledToday = !state.scheduledToday; refresh(); }),
+        chip("Has dues", state.hasDues, () => { state.hasDues = !state.hasDues; refresh(); }),
+      ]),
+      section("Visit type", [
+        chip("In-clinic", state.visits.has("clinic"), () => { toggleSet(state.visits, "clinic"); refresh(); }),
+        chip("Home visit", state.visits.has("home"), () => { toggleSet(state.visits, "home"); refresh(); }),
+      ]),
+    ];
+    if (ailmentsInUse.length) parts.push(section("Ailment", ailmentsInUse.map((a) => chip(a, state.ailments.has(a), () => { toggleSet(state.ailments, a); refresh(); }))));
+    if (activeCount()) parts.push(el("button", { class: "btn ghost", style: "margin-top:4px", onclick: () => { clearFilters(); refresh(); } }, ["Clear all filters"]));
+    panel.replaceChildren(...parts);
+  };
+
   const renderList = () => {
     const q = state.query.trim().toLowerCase();
-    const patients = [...snap.patients]
-      .filter((p) => {
-        if (state.segment === "today") return seenToday.has(p.id);
-        if (state.segment === "mine") return me && p.assignedMemberId === me.id;
-        if (state.segment.startsWith("ail:")) return (app.repo.ailmentNameFor(p) ?? "") === state.segment.slice(4);
-        return true;
-      })
-      .filter((p) => !q || p.name.toLowerCase().includes(q))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const patients = snap.patients.filter((p) => {
+      if (state.assignedToMe && !(me && p.assignedMemberId === me.id)) return false;
+      if (state.seenToday && !seenTodaySet.has(p.id)) return false;
+      if (state.scheduledToday && !isScheduledOn(p.schedule, today)) return false;
+      if (state.hasDues && dueCountFor(p) === 0) return false;
+      if (state.ailments.size && !state.ailments.has(app.repo.ailmentNameFor(p) ?? "")) return false;
+      if (state.visits.size && !state.visits.has(p.visitType ?? "clinic")) return false;
+      if (q && !p.name.toLowerCase().includes(q)) return false;
+      return true;
+    }).sort((a, b) => a.name.localeCompare(b.name));
 
     listWrap.replaceChildren(
       el("div", { class: "section-title" }, [`Patients (${patients.length})`]),
       patients.length
-        ? el("div", { class: "card list" }, patients.map((p) => patientRow(app, p, seenToday)))
+        ? el("div", { class: "card list" }, patients.map((p) => patientRow(app, p, seenTodaySet)))
         : el("div", { class: "empty" }, [
             icon("user", 40),
-            el("div", {}, [emptyMessage()]),
-            state.segment === "all" && !state.query && canAddPatient(role)
-              ? el("div", { class: "hint" }, ["Add your first patient to begin."]) : null,
+            el("div", {}, [activeCount() || state.query ? "No patients match your filters." : "No patients yet."]),
+            !activeCount() && !state.query && canAddPatient(role) ? el("div", { class: "hint" }, ["Add your first patient to begin."]) : null,
           ]),
     );
   };
 
-  buildChips();
-  renderList();
+  const refresh = () => { buildFilterBtn(); buildSummary(); buildPanel(); renderList(); };
+  refresh();
 
   const wrap = el("div", {}, [
-    el("div", { class: "searchbar" }, [search]),
-    chipRow,
+    el("div", { class: "filter-row" }, [search, filterBtn]),
+    summary,
+    panel,
     listWrap,
     el("div", { style: "height:72px" }),
   ]);
 
   if (canAddPatient(role)) {
-    wrap.append(
-      el("div", { class: "fab" }, [
-        el("button", { class: "btn", onclick: () => openPatientForm(app) }, [icon("plus"), "Add patient"]),
-      ]),
-    );
+    wrap.append(el("div", { class: "fab" }, [
+      el("button", { class: "btn", onclick: () => openPatientForm(app) }, [icon("plus"), "Add patient"]),
+    ]));
   }
   return wrap;
-}
-
-function emptyMessage(): string {
-  if (state.query) return "No patients match your search.";
-  if (state.segment === "today") return "No patients seen today yet.";
-  if (state.segment === "mine") return "No patients assigned to you.";
-  if (state.segment.startsWith("ail:")) return "No patients with this ailment.";
-  return "No patients yet.";
 }
 
 function patientRow(app: AppController, p: Patient, seenToday: Set<string>): HTMLElement {
