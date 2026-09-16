@@ -7,6 +7,7 @@ import { canAddPatient } from "../../domain/types.js";
 import type { Patient } from "../../domain/types.js";
 import { el, icon, todayISO } from "../dom.js";
 import { openPatientForm } from "./patient-form.js";
+import { openMarkFees } from "./patient.js";
 
 // Segment survives full re-renders (module singleton). `all` | `today` | `mine` | `treat:<name>`.
 const state = { segment: "all", query: "" };
@@ -101,17 +102,41 @@ function patientRow(app: AppController, p: Patient, seenToday: Set<string>): HTM
   const visits = app.repo.attendanceFor(p.id);
   const total = visits.length;
   const dueCount = visits.filter((v) => !paid.has(v.date)).length;
-  const sub = [app.repo.ailmentNameFor(p), p.plan?.title, seenToday.has(p.id) ? "seen today" : null].filter(Boolean).join(" · ");
-  return el("button", { class: "row", onclick: () => app.navigate({ name: "patient", id: p.id }) }, [
-    el("div", { class: "avatar" }, [p.name.slice(0, 1).toUpperCase()]),
-    el("div", { class: "grow" }, [
-      el("div", { class: "name" }, [p.name]),
-      el("div", { class: "sub" }, [sub || p.phone || "—"]),
+  const present = seenToday.has(p.id);
+  const canAct = app.repo.get().currentMember?.role === "admin"; // fees; staff can also mark present
+  const sub = [app.repo.ailmentNameFor(p), p.plan?.title].filter(Boolean).join(" · ");
+
+  // Two right-side quick actions (R68): mark present today, mark paid.
+  const presentBtn = el("button", {
+    class: "row-act" + (present ? " done" : ""),
+    "aria-label": present ? "Present today" : "Mark present today",
+    async onclick(e: Event) {
+      e.stopPropagation();
+      if (present) return; // already marked; edit via the calendar
+      await app.repo.markAttendance(p.id, todayISO(), undefined);
+      app.render();
+    },
+  }, [icon("check", 18)]);
+
+  const paidBtn = el("button", {
+    class: "row-act" + (dueCount > 0 ? " alert" : ""),
+    "aria-label": "Mark paid",
+    onclick(e: Event) { e.stopPropagation(); openMarkFees(app, p.id); },
+  }, [icon("wallet", 18)]);
+
+  return el("div", { class: "row" }, [
+    el("button", { class: "row-main", onclick: () => app.navigate({ name: "patient", id: p.id }) }, [
+      el("div", { class: "avatar" }, [p.name.slice(0, 1).toUpperCase()]),
+      el("div", { class: "grow" }, [
+        el("div", { class: "name" }, [p.name]),
+        el("div", { class: "sub" }, [sub || p.phone || "—"]),
+      ]),
+      el("div", { class: "count" + (dueCount > 0 ? " due" : "") }, [
+        el("span", { class: "count-value" }, [`${dueCount}/${total}`]),
+        el("span", { class: "count-label" }, [dueCount > 0 ? "due" : "visits"]),
+      ]),
     ]),
-    // Due visits over total visits, e.g. "2/10". Red when any are due (unpaid).
-    el("div", { class: "count" + (dueCount > 0 ? " due" : "") }, [
-      el("span", { class: "count-value" }, [`${dueCount}/${total}`]),
-      el("span", { class: "count-label" }, [dueCount > 0 ? "due" : "visits"]),
-    ]),
+    presentBtn,
+    canAct ? paidBtn : null,
   ]);
 }

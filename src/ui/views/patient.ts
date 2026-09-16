@@ -92,7 +92,7 @@ function openMarkAttendance(app: AppController, patientId: string): void {
   ]);
 }
 
-function openMarkFees(app: AppController, patientId: string): void {
+export function openMarkFees(app: AppController, patientId: string): void {
   const paid = app.repo.paidDatesFor(patientId);
   const visits = app.repo.attendanceFor(patientId);
   const dueDates = visits.filter((v) => !paid.has(v.date)).map((v) => v.date);
