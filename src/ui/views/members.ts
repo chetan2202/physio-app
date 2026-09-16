@@ -91,6 +91,10 @@ function backupCard(app: AppController): HTMLElement {
       }, ["Export backup"]),
       el("button", { class: "btn secondary", style: "flex:1", onclick: () => fileInput.click() }, ["Restore"]),
     ]),
+    el("button", {
+      class: "btn secondary", style: "margin-top:10px",
+      onclick: () => downloadText(`physio-patients-${todayISO()}.csv`, app.repo.exportCsv(), "text/csv"),
+    }, ["Download CSV (patients report)"]),
     fileInput,
   ]);
 }

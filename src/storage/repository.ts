@@ -273,6 +273,40 @@ export class Repository {
     };
   }
 
+  // A patient-summary CSV of all data (name, ailment, visit/due/collected rollups). Useful
+  // for month-end billing; works the same in the admin-only and synced app.
+  exportCsv(): string {
+    const cols = [
+      "Name", "Age", "Sex", "Phone", "Ailment", "Ailment notes", "Assigned to",
+      "Total visits", "Due visits", "Amount collected", "Last visit",
+    ];
+    const rows = [...this.snap.patients]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((p) => {
+        const visits = this.attendanceFor(p.id);
+        const paid = this.paidDatesFor(p.id);
+        const due = visits.filter((v) => !paid.has(v.date)).length;
+        const collected = this.snap.payments
+          .filter((pay) => pay.patientId === p.id)
+          .reduce((sum, pay) => sum + (pay.amount ?? 0), 0);
+        const lastVisit = visits[0]?.date ?? "";
+        return [
+          p.name,
+          p.age != null ? String(p.age) : "",
+          p.gender,
+          p.phone ?? "",
+          this.ailmentNameFor(p) ?? "",
+          p.ailmentNotes ?? "",
+          this.memberById(p.assignedMemberId)?.name ?? "",
+          String(visits.length),
+          String(due),
+          collected ? String(collected) : "",
+          lastVisit,
+        ];
+      });
+    return [cols, ...rows].map((r) => r.map(csvCell).join(",")).join("\r\n");
+  }
+
   // Restore/merge a backup. Records are upserted by id (no wipe), so restoring onto an
   // existing device is safe and importing onto a fresh device loads everything.
   async importData(bundle: ExportBundle): Promise<{ records: number }> {
@@ -297,4 +331,9 @@ export class Repository {
     if (!this.snap.currentMember) throw new Error("No current member");
     return this.snap.currentMember;
   }
+}
+
+// Quote a CSV cell when it contains a comma, quote, or newline (RFC 4180).
+function csvCell(value: string): string {
+  return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
