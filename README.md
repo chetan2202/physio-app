@@ -1,6 +1,6 @@
 # physio-app
 
-A Progressive Web App (PWA) for managing a physiotherapy center — patients, daily attendance, and fee collection — built for a small clinic with a handful of staff and 60+ regular patients.
+A Progressive Web App (PWA) for managing a physiotherapy center — patients, daily attendance, and fee collection — designed for a small clinic with a handful of staff and dozens of regular patients.
 
 ## Install the app
 
@@ -14,13 +14,13 @@ It is an installable, offline-first PWA — no app store needed:
 
 Once installed it launches full-screen and works offline. Data is stored locally on the device (IndexedDB).
 
-## Problem
+## What it does
 
-A physiotherapy center owner needs to:
+A physiotherapy center needs to:
 
-- Communicate the day's treatment plan to staff.
-- Have staff mark a patient's entry every time they visit.
-- Bill patients accordingly at week-end or month-end.
+- Share the day's treatment plan with staff.
+- Record a patient's visit every time they come in.
+- Bill patients weekly or monthly from those visits.
 - Record fee payments flexibly — daily, weekly, monthly, or by selecting/unselecting specific days or weeks and marking them paid.
 
 ## Roles
@@ -33,21 +33,18 @@ A physiotherapy center owner needs to:
 
 ## How it works
 
-1. One user creates a **healthcare facility** — names it and sets an optional logo.
-2. The app generates a **QR code / invitation code** tied to a selected role. Others download the app and join by scanning or entering the code.
+1. One user creates a **facility** — names it and sets an optional logo.
+2. The app generates a **QR code / invitation code** tied to a selected role. Others install the app and join by scanning or entering the code.
 3. Admin can change any member's role later.
 
-## v0 scope
+## Features
 
-- Admin/HOD adds a **patient**: name, age, phone number, gender, address (optional).
-- Staff/HOD/Admin **marks attendance** for a patient: select the date (time optional).
-- Admin/HOD **marks fees paid** across selected days/weeks/months.
-
-**Deferred to v0.1:** Google Drive sync (the app will sync data with an admin-configured Google Drive folder).
+- Add a **patient**: name, age, phone number, gender, address (optional). Multiple patients may share a phone number.
+- **Mark attendance** for a patient: select the date (time optional), with per-patient history.
+- **Mark fees paid** across a selectable set of visit days.
+- **Patient segmentation** for managing many patients: search and filter by treatment, today's visits, or assigned staff.
 
 ## Tech stack
-
-Built the same way as the sibling `suno-app` project:
 
 - **Vite + vanilla TypeScript** (no UI framework) — small, fast, dependency-light.
 - **vite-plugin-pwa** (Workbox) — service worker, offline shell, installable manifest.
@@ -69,22 +66,16 @@ npm run build   # type-check + production build into dist/
 ## Design principles
 
 - Minimalist, flat design.
-- Flat icons only — **no emoji in icons or inside code**.
-- Design inspiration drawn from the Suno app.
+- Flat icons only — no emoji in icons or inside code.
 
-## Requirements & roadmap
+## Roadmap
 
-Full, ID'd requirements (including the roadmap and statuses) live in [requirements.md](./requirements.md).
+The app is fully functional on a single device today. Planned next:
 
-Highlights of what's accepted next (from user feedback after installing v0):
-
-- **Patient segmentation (R10–R13)** — at 60–100 patients a flat list doesn't scale. Add
-  filtering/grouping by **treatment**, **today's schedule**, and **assigned staff**, plus search.
-- **Shared phone numbers (R7)** — more than one patient may have the same phone (families); the
-  app must never block or de-duplicate on phone.
-- **Better app icon (R42)** — done: replaced the generic plus with an active-figure mark.
-- **Google Drive sync (R30)** — the keystone that makes the app multi-device; see requirements.md §7.
+- **Optional cloud sync** — share a facility across devices and team members (single-device use continues to work without it).
+- **Daily schedule** — a forward-looking view of the patients planned for the day.
+- **Billing summaries** — weekly and monthly totals per patient and for the facility.
 
 ## Status
 
-**v0 shipped and live.** Facility setup, members & roles (with invite code + QR generation), patients, attendance, and fee collection all work offline on-device. Cross-device sharing via Google Drive sync is the next milestone (v0.1).
+Facility setup, members and roles (with invite code / QR generation), patients, attendance, fee collection, and patient segmentation all work offline on-device. Cross-device sync is the next milestone.
