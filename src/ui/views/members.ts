@@ -1,69 +1,45 @@
-// Members & roles (Admin only): list members, change their role, and generate a
-// role-scoped invitation code + QR. Cross-device joining activates with Google Drive
-// sync in v0.1; until then the code/QR are generated and shown for that rollout.
+// Members & roles (Admin only). In the current single-device build the app runs in
+// admin-only mode: adding staff and syncing data across devices is enabled on request by
+// the developer. The member list is read-only here; role management and multi-device
+// arrive with cloud sync.
 
-import QRCode from "qrcode";
 import type { AppController } from "../app.js";
 import { ROLE_LABELS } from "../../domain/types.js";
-import type { Role } from "../../domain/types.js";
 import { el, icon } from "../dom.js";
 
-const ROLES: Role[] = ["admin", "hod", "staff"];
+const SUPPORT_EMAIL = "info@vyakaranlabs.com";
 
 export function renderMembers(app: AppController): HTMLElement {
   const snap = app.repo.get();
 
-  const memberList = el("div", { class: "card list" }, snap.members.map((m) => {
-    const select = el("select", {
-      onchange: async (e: Event) => {
-        await app.repo.setMemberRole(m.id, (e.target as HTMLSelectElement).value as Role);
-        app.render();
-      },
-    }, ROLES.map((r) => el("option", { value: r, selected: r === m.role }, [ROLE_LABELS[r]]))) as HTMLSelectElement;
-
-    return el("div", { class: "row", style: "cursor:default" }, [
+  const memberList = el("div", { class: "card list" }, snap.members.map((m) =>
+    el("div", { class: "row", style: "cursor:default" }, [
       el("div", { class: "avatar" }, [m.name.slice(0, 1).toUpperCase()]),
       el("div", { class: "grow" }, [
         el("div", { class: "name" }, [m.name, m.isCurrentUser ? el("span", { class: "badge", style: "margin-left:8px" }, ["you"]) : null]),
+        el("div", { class: "sub" }, [ROLE_LABELS[m.role]]),
       ]),
-      el("div", { style: "width:110px;flex:none" }, [select]),
-    ]);
-  }));
+    ])));
 
-  const invites = snap.invites.length
-    ? el("div", { class: "card list" }, snap.invites.map((inv) =>
-        el("div", { class: "row", style: "cursor:default" }, [
-          el("div", { class: "grow" }, [
-            el("div", { class: "code", style: "text-align:left;font-size:16px" }, [inv.code]),
-            el("div", { class: "sub" }, [`Joins as ${ROLE_LABELS[inv.role]}`]),
-          ]),
-          el("button", { class: "btn ghost", style: "width:auto", onclick: () => openQr(app, inv.code, inv.role) }, ["Show QR"]),
-          el("button", { class: "btn ghost", style: "width:auto;color:var(--danger)", async onclick() { await app.repo.revokeInvite(inv.code); app.render(); } }, ["Revoke"]),
-        ])))
-    : el("div", { class: "empty" }, [icon("users", 40), el("div", {}, ["No invitation codes yet."])]);
+  // Remark: adding staff and cloud sync are enabled on request by the developer.
+  const contact = el("div", { class: "card", style: "padding:16px" }, [
+    el("div", { style: "display:flex;align-items:center;gap:10px;margin-bottom:8px" }, [
+      icon("cloud", 22),
+      el("div", { class: "name", style: "font-size:16px" }, ["Add staff & cloud sync"]),
+    ]),
+    el("p", { class: "hint", style: "margin:0 0 12px" }, [
+      "This app currently runs on this device for the admin only. To add staff members and to use ",
+      "cloud sync of your data across devices, please contact the developer.",
+    ]),
+    el("a", { class: "btn", href: `mailto:${SUPPORT_EMAIL}?subject=Physio%20app%20-%20add%20staff%20%26%20cloud%20sync`, style: "text-decoration:none" }, [
+      icon("mail"), SUPPORT_EMAIL,
+    ]),
+  ]);
 
   return el("div", {}, [
-    el("div", { class: "section-title" }, ["Members"]),
+    el("div", { class: "section-title" }, [`Members (${snap.members.length})`]),
     memberList,
-    el("div", { class: "section-title" }, ["Invitation codes"]),
-    invites,
-    el("p", { class: "hint" }, ["Sharing data across devices activates with Google Drive sync in v0.1."]),
-    el("div", { style: "display:flex;gap:10px;margin-top:12px" }, ROLES.map((r) =>
-      el("button", { class: "btn secondary", async onclick() { await app.repo.createInvite(r); app.render(); } }, [`Invite ${ROLE_LABELS[r]}`]))),
-  ]);
-}
-
-async function openQr(app: AppController, code: string, role: Role): Promise<void> {
-  const img = el("img", { class: "qr", alt: `Invite QR for ${code}` }) as HTMLImageElement;
-  const payload = JSON.stringify({ t: "physio-invite", code, role });
-  try {
-    img.src = await QRCode.toDataURL(payload, { margin: 1, width: 200 });
-  } catch {
-    /* ignore render failure */
-  }
-  app.openSheet("Invitation", [
-    el("div", { class: "code" }, [code]),
-    el("p", { class: "hint" }, [`Joins as ${ROLE_LABELS[role]}. Scan to join once v0.1 sync is available.`]),
-    img,
+    el("div", { class: "section-title" }, ["Team & sync"]),
+    contact,
   ]);
 }

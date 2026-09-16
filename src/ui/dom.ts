@@ -37,6 +37,8 @@ const PATHS: Record<string, string> = {
   building: "M3 21h18M6 21V7l6-4 6 4v14M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01",
   activity: "M14.5 4.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0M12 7.5v6M12 9 6 6.7M12 9l6-2.3M12 13.5 8 21M12 13.5 16 21",
   filter: "M22 3H2l8 9.46V19l4 2v-8.54L22 3z",
+  mail: "M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM22 7l-10 6L2 7",
+  cloud: "M17.5 19a4.5 4.5 0 1 0 0-9h-1.26A8 8 0 1 0 4 15.25",
 };
 
 export function icon(name: keyof typeof PATHS, size = 20): SVGElement {
