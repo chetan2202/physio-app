@@ -37,6 +37,7 @@ export interface Facility {
   logoDataUrl?: string; // optional, small data URL
   plansAdopted?: boolean; // the admin has made the one-time seed-plan choice (R65)
   createdAt: number;
+  updatedAt?: number; // last change (for cross-device last-writer-wins merge)
 }
 
 // An item in the admin's treatment-plan library (R64-R65): a title + pointers.
@@ -45,6 +46,7 @@ export interface PlanTemplate {
   title: string;
   pointers: string[];
   source: "seed" | "custom";
+  updatedAt?: number;
 }
 
 // A plan as assigned to a patient — a snapshot (not a live link to the template).
@@ -60,6 +62,7 @@ export interface Member {
   role: Role;
   isCurrentUser: boolean; // the person using this device
   joinedAt: number;
+  updatedAt?: number;
 }
 
 export interface InviteCode {
@@ -85,6 +88,7 @@ export interface Patient {
   treatment?: string; // legacy free-text condition (pre-M14); shown as fallback until edited
   assignedMemberId?: string; // therapist responsible (R9)
   createdAt: number;
+  updatedAt?: number; // last change (for cross-device last-writer-wins merge)
 }
 
 // Weekday short labels, index 0=Sun .. 6=Sat.

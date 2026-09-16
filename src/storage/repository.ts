@@ -33,13 +33,15 @@ export interface Snapshot {
 // push later (the sync module reuses this serialization).
 export interface ExportBundle {
   app: "physio-app";
-  schema: 1;
+  schema: number;
   exportedAt: number;
   facility?: Facility;
   members: Member[];
   patients: Patient[];
   attendance: Attendance[];
   payments: Payment[];
+  ailments?: Ailment[];
+  plans?: PlanTemplate[];
 }
 
 export class Repository {
@@ -100,14 +102,16 @@ export class Repository {
   // --- Facility & membership -------------------------------------------------
 
   async createFacility(name: string, logoDataUrl: string | undefined, adminName: string): Promise<void> {
-    const facility: Facility = { id: newId(), name, logoDataUrl, createdAt: Date.now() };
+    const now = Date.now();
+    const facility: Facility = { id: newId(), name, logoDataUrl, createdAt: now, updatedAt: now };
     const admin: Member = {
       id: newId(),
       facilityId: facility.id,
       name: adminName,
       role: "admin",
       isCurrentUser: true,
-      joinedAt: Date.now(),
+      joinedAt: now,
+      updatedAt: now,
     };
     await put("facility", facility);
     await put("members", admin);
@@ -137,7 +141,7 @@ export class Repository {
   async setMemberRole(memberId: string, role: Role): Promise<void> {
     const member = this.snap.members.find((m) => m.id === memberId);
     if (!member) return;
-    const updated = { ...member, role };
+    const updated = { ...member, role, updatedAt: Date.now() };
     await put("members", updated);
     this.snap.members = this.snap.members.map((m) => (m.id === memberId ? updated : m));
     if (updated.isCurrentUser) this.snap.currentMember = updated;
@@ -147,7 +151,8 @@ export class Repository {
 
   async addPatient(input: Omit<Patient, "id" | "facilityId" | "createdAt">): Promise<Patient> {
     const facility = this.requireFacility();
-    const patient: Patient = { ...input, id: newId(), facilityId: facility.id, createdAt: Date.now() };
+    const now = Date.now();
+    const patient: Patient = { ...input, id: newId(), facilityId: facility.id, createdAt: now, updatedAt: now };
     await put("patients", patient);
     this.snap.patients = [...this.snap.patients, patient];
     return patient;
@@ -156,7 +161,7 @@ export class Repository {
   async updatePatient(id: string, patch: Partial<Omit<Patient, "id" | "facilityId" | "createdAt">>): Promise<void> {
     const existing = this.patientById(id);
     if (!existing) return;
-    const updated = { ...existing, ...patch };
+    const updated = { ...existing, ...patch, updatedAt: Date.now() };
     await put("patients", updated);
     this.snap.patients = this.snap.patients.map((p) => (p.id === id ? updated : p));
   }
@@ -256,7 +261,7 @@ export class Repository {
   }
 
   async addPlan(title: string, pointers: string[]): Promise<PlanTemplate> {
-    const plan: PlanTemplate = { id: newId(), title: title.trim(), pointers, source: "custom" };
+    const plan: PlanTemplate = { id: newId(), title: title.trim(), pointers, source: "custom", updatedAt: Date.now() };
     await put("plans", plan);
     this.snap.plans = [...this.snap.plans, plan];
     return plan;
@@ -265,7 +270,7 @@ export class Repository {
   async updatePlan(id: string, patch: Partial<Pick<PlanTemplate, "title" | "pointers">>): Promise<void> {
     const existing = this.planById(id);
     if (!existing) return;
-    const updated = { ...existing, ...patch };
+    const updated = { ...existing, ...patch, updatedAt: Date.now() };
     await put("plans", updated);
     this.snap.plans = this.snap.plans.map((p) => (p.id === id ? updated : p));
   }
@@ -277,7 +282,7 @@ export class Repository {
 
   private async setFacility(patch: Partial<Facility>): Promise<void> {
     if (!this.snap.facility) return;
-    const updated = { ...this.snap.facility, ...patch };
+    const updated = { ...this.snap.facility, ...patch, updatedAt: Date.now() };
     await put("facility", updated);
     this.snap.facility = updated;
   }
@@ -374,13 +379,16 @@ export class Repository {
     const s = this.snap;
     return {
       app: "physio-app",
-      schema: 1,
+      schema: 2,
       exportedAt: Date.now(),
       facility: s.facility,
       members: s.members,
       patients: s.patients,
       attendance: s.attendance,
       payments: s.payments,
+      // Custom ailments only — seed ailments are re-seeded on load, not carried in backups.
+      ailments: s.ailments.filter((a) => a.source === "custom"),
+      plans: s.plans,
     };
   }
 
@@ -428,8 +436,51 @@ export class Repository {
     for (const p of bundle.patients ?? []) { await put("patients", p); records++; }
     for (const a of bundle.attendance ?? []) { await put("attendance", a); records++; }
     for (const p of bundle.payments ?? []) { await put("payments", p); records++; }
+    for (const a of bundle.ailments ?? []) { await put("ailments", a); records++; }
+    for (const p of bundle.plans ?? []) { await put("plans", p); records++; }
     await this.load();
     return { records };
+  }
+
+  // --- Sync merge (M9) -------------------------------------------------------
+  // Merge a peer device's bundle into local storage with **last-writer-wins** on editable
+  // records (by updatedAt) and **union** on additive records (attendance, payments, ailments —
+  // added once, never edited). This is the reducer the SyncPort feeds; it is commutative and
+  // idempotent, so applying the same bundle twice is a no-op.
+  async mergeBundle(bundle: ExportBundle): Promise<{ applied: number }> {
+    if (!bundle || bundle.app !== "physio-app") throw new Error("Not a Physio bundle.");
+    let applied = 0;
+    const ts = (r: { updatedAt?: number; createdAt?: number }): number => r.updatedAt ?? r.createdAt ?? 0;
+
+    // Last-writer-wins for editable, id-keyed collections.
+    const lww = async <T extends { id: string; updatedAt?: number; createdAt?: number }>(
+      store: "members" | "patients" | "plans", incoming: T[], local: T[],
+    ) => {
+      const byId = new Map(local.map((r) => [r.id, r]));
+      for (const inc of incoming) {
+        const cur = byId.get(inc.id);
+        if (!cur || ts(inc) > ts(cur)) { await put(store, inc); applied++; }
+      }
+    };
+    await lww("members", bundle.members ?? [], this.snap.members);
+    await lww("patients", bundle.patients ?? [], this.snap.patients);
+    await lww("plans", bundle.plans ?? [], this.snap.plans);
+
+    // Union (add-if-absent) for additive, id-keyed collections.
+    const union = async <T extends { id: string }>(store: "attendance" | "payments" | "ailments", incoming: T[], local: T[]) => {
+      const ids = new Set(local.map((r) => r.id));
+      for (const inc of incoming) if (!ids.has(inc.id)) { await put(store, inc); applied++; }
+    };
+    await union("attendance", bundle.attendance ?? [], this.snap.attendance);
+    await union("payments", bundle.payments ?? [], this.snap.payments);
+    await union("ailments", (bundle.ailments ?? []).filter((a) => a.source === "custom"), this.snap.ailments);
+
+    // Facility: last-writer-wins (never overwrite a newer local facility).
+    if (bundle.facility && (!this.snap.facility || ts(bundle.facility) > ts(this.snap.facility))) {
+      await put("facility", { ...bundle.facility }); applied++;
+    }
+    await this.load();
+    return { applied };
   }
 
   // --- helpers ---------------------------------------------------------------
