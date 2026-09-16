@@ -23,6 +23,19 @@ export interface Snapshot {
   payments: Payment[];
 }
 
+// A full, portable backup of a clinic's data. Also the payload the Drive backup will
+// push later (the sync module reuses this serialization).
+export interface ExportBundle {
+  app: "physio-app";
+  schema: 1;
+  exportedAt: number;
+  facility?: Facility;
+  members: Member[];
+  patients: Patient[];
+  attendance: Attendance[];
+  payments: Payment[];
+}
+
 export class Repository {
   private snap: Snapshot = {
     members: [],
@@ -192,6 +205,36 @@ export class Repository {
       if (p.patientId === patientId) for (const d of p.coveredDates) paid.add(d);
     }
     return paid;
+  }
+
+  // --- Backup / restore (R42) -----------------------------------------------
+
+  exportData(): ExportBundle {
+    const s = this.snap;
+    return {
+      app: "physio-app",
+      schema: 1,
+      exportedAt: Date.now(),
+      facility: s.facility,
+      members: s.members,
+      patients: s.patients,
+      attendance: s.attendance,
+      payments: s.payments,
+    };
+  }
+
+  // Restore/merge a backup. Records are upserted by id (no wipe), so restoring onto an
+  // existing device is safe and importing onto a fresh device loads everything.
+  async importData(bundle: ExportBundle): Promise<{ records: number }> {
+    if (!bundle || bundle.app !== "physio-app") throw new Error("This file is not a Physio backup.");
+    let records = 0;
+    if (bundle.facility) { await put("facility", bundle.facility); records++; }
+    for (const m of bundle.members ?? []) { await put("members", m); records++; }
+    for (const p of bundle.patients ?? []) { await put("patients", p); records++; }
+    for (const a of bundle.attendance ?? []) { await put("attendance", a); records++; }
+    for (const p of bundle.payments ?? []) { await put("payments", p); records++; }
+    await this.load();
+    return { records };
   }
 
   // --- helpers ---------------------------------------------------------------
