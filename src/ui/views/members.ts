@@ -40,6 +40,17 @@ export function renderMembers(app: AppController): HTMLElement {
   return el("div", {}, [
     el("div", { class: "section-title" }, [`Members (${snap.members.length})`]),
     memberList,
+    el("div", { class: "section-title" }, ["Treatment plans"]),
+    el("div", { class: "card list" }, [
+      el("button", { class: "row", onclick: () => app.navigate({ name: "plans" }) }, [
+        el("div", { class: "avatar", style: "background:var(--brand-tint)" }, [icon("activity", 18)]),
+        el("div", { class: "grow" }, [
+          el("div", { class: "name" }, ["Manage treatment plans"]),
+          el("div", { class: "sub" }, [`${app.repo.plans().length} in your library`]),
+        ]),
+        icon("chevronRight", 18),
+      ]),
+    ]),
     el("div", { class: "section-title" }, ["Team & sync"]),
     contact,
     el("div", { class: "section-title" }, ["Backup"]),

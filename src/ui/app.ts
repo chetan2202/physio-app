@@ -10,8 +10,9 @@ import { renderSetup } from "./views/setup.js";
 import { renderHome } from "./views/home.js";
 import { renderPatient } from "./views/patient.js";
 import { renderMembers } from "./views/members.js";
+import { renderPlans } from "./views/plans.js";
 
-type Route = { name: "home" } | { name: "patient"; id: string } | { name: "members" };
+type Route = { name: "home" } | { name: "patient"; id: string } | { name: "members" } | { name: "plans" };
 
 export class AppController {
   private route: Route = { name: "home" };
@@ -49,6 +50,7 @@ export class AppController {
       case "home": return renderHome(this);
       case "patient": return renderPatient(this, this.route.id);
       case "members": return renderMembers(this);
+      case "plans": return renderPlans(this);
     }
   }
 
@@ -79,6 +81,7 @@ export class AppController {
       return this.repo.patientById(this.route.id)?.name ?? "Patient";
     }
     if (this.route.name === "members") return "Members & roles";
+    if (this.route.name === "plans") return "Treatment plans";
     return "Physio";
   }
 
