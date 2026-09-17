@@ -6,8 +6,7 @@
   "description": "Local-first physiotherapy center PWA — patients, attendance, and fees. Offline-first, installable.",
   "scripts": {
     "dev": "vite",
-    "pull-sync": "node scripts/pull-sync.mjs",
-    "build": "node scripts/pull-sync.mjs && tsc && vite build",
+    "build": "tsc && vite build",
     "preview": "vite preview",
     "icons": "node scripts/generate-icons.mjs"
   },

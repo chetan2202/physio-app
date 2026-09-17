@@ -1,5 +1,3 @@
-import { existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
@@ -8,14 +6,8 @@ import { VitePWA } from "vite-plugin-pwa";
 // so asset URLs must be relative to that base.
 const BASE = "/physio-app/";
 
-// `@sync-module` resolves to the vendored closed sync module when present (run `npm run
-// pull-sync`), or to the local-only stub otherwise — so the public build always works.
-const vendored = fileURLToPath(new URL("./src/sync/vendor/index.ts", import.meta.url));
-const syncModule = existsSync(vendored) ? vendored : fileURLToPath(new URL("./src/sync/stub.ts", import.meta.url));
-
 export default defineConfig({
   base: BASE,
-  resolve: { alias: { "@sync-module": syncModule } },
   plugins: [
     VitePWA({
       registerType: "prompt",

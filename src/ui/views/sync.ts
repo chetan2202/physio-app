@@ -5,7 +5,7 @@
 
 import QRCode from "qrcode";
 import type { AppController } from "../app.js";
-import { getDrivePort, moduleAvailable, syncAvailable, type DrivePort } from "../../sync/drive.js";
+import { getDrivePort, syncAvailable, type DrivePort } from "../../sync/drive.js";
 import { activate, deactivate, getActivation } from "../../sync/activation.js";
 import { syncNow } from "../../sync/port.js";
 import { el, icon } from "../dom.js";
@@ -20,9 +20,7 @@ function drivePort(): DrivePort | null {
 }
 
 export function renderSyncCard(app: AppController): HTMLElement {
-  // Local-only build (closed module not bundled): direct the admin to the developer.
-  if (!moduleAvailable()) return contactCard();
-  // Module present but not activated: the admin enters the developer's activation code.
+  // Not activated: the admin enters the developer's activation code (R30.1).
   if (!syncAvailable()) return activationCard(app);
 
   const p = drivePort();
@@ -113,13 +111,3 @@ function activationCard(app: AppController): HTMLElement {
   ]);
 }
 
-// Local-only build (closed sync module not bundled): direct users to the developer.
-function contactCard(): HTMLElement {
-  return card([
-    cardHeader("cloud", "Add staff & cloud sync"),
-    el("p", { class: "hint", style: "margin:0 0 12px" }, [
-      "This app currently runs on this device for the admin only. To add staff and use cloud sync of your data across devices, please contact the developer.",
-    ]),
-    el("a", { class: "btn", href: `mailto:${SUPPORT_EMAIL}?subject=Physio%20app%20-%20add%20staff%20%26%20cloud%20sync`, style: "text-decoration:none" }, [icon("mail"), SUPPORT_EMAIL]),
-  ]);
-}

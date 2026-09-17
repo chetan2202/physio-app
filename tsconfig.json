@@ -15,11 +15,7 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "noEmit": true,
-    "paths": {
-      "@sync-module": ["./src/sync/stub.ts"]
-    }
+    "noEmit": true
   },
-  "include": ["src", "vite.config.ts"],
-  "exclude": ["src/sync/vendor"]
+  "include": ["src", "vite.config.ts"]
 }
