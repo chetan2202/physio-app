@@ -2,10 +2,10 @@
 // A device is in "patient mode" whenever a family bundle is stored locally. There is no
 // clinic data here — the patient receives a snapshot and can refresh it from a newer QR.
 
-import jsQR from "jsqr";
 import type { FamilyBundle } from "../../patient/bundle.js";
 import { decodeFamily } from "../../patient/bundle.js";
 import { clearPatientData, getPatientData, savePatientData } from "../../patient/store.js";
+import { codeFromImage } from "../qr-scan.js";
 import { el, icon } from "../dom.js";
 
 // Mount the patient app into the given root. Returns nothing; re-renders in place.
@@ -114,21 +114,6 @@ function pillStyle(ok: boolean): string {
   return `font-size:12px;padding:2px 10px;border-radius:999px;font-weight:600;${
     ok ? "background:var(--ok-bg,#e6f5ec);color:var(--ok,#137a3e)" : "background:var(--due-bg,#fdecec);color:var(--due,#c0392b)"
   }`;
-}
-
-// Decode a QR code from an uploaded image file using jsQR.
-async function codeFromImage(file: File): Promise<string> {
-  const bitmap = await createImageBitmap(file);
-  const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Could not read the image.");
-  ctx.drawImage(bitmap, 0, 0);
-  const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const found = jsQR(data, width, height);
-  if (!found?.data) throw new Error("No QR code found in that image. Try a clearer photo or screenshot.");
-  return found.data;
 }
 
 function formatDate(iso: string): string {

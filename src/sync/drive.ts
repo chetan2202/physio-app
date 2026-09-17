@@ -28,3 +28,9 @@ export function getDrivePort(): DrivePort | null {
   if (!id) return null;
   return new DriveSyncPort(id, getActivation()?.folderName);
 }
+
+// Build a Drive port from explicit coordinates (staff device: from the scanned token QR /
+// stored staff session, not from a PHY activation).
+export function drivePortFor(clientId: string, folderName?: string): DrivePort {
+  return new DriveSyncPort(clientId, folderName);
+}

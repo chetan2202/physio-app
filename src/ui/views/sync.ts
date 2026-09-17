@@ -8,6 +8,8 @@ import type { AppController } from "../app.js";
 import { getDrivePort, syncAvailable, type DrivePort } from "../../sync/drive.js";
 import { activate, deactivate, getActivation } from "../../sync/activation.js";
 import { syncNow } from "../../sync/port.js";
+import { getStaffSession } from "../../sync/staff-session.js";
+import { openStaffSync } from "./staff-join.js";
 import { el, icon } from "../dom.js";
 
 const SUPPORT_EMAIL = "info@vyakaranlabs.com";
@@ -20,6 +22,11 @@ function drivePort(): DrivePort | null {
 }
 
 export function renderSyncCard(app: AppController): HTMLElement {
+  // Staff devices joined by scanning the admin's token QR — they re-sync the same way (a fresh
+  // 1-hour token), not by signing into Google themselves.
+  const session = getStaffSession();
+  if (session && app.repo.get().currentMember?.role === "staff") return staffSyncCard(app, session);
+
   // Not activated: the admin enters the developer's activation code (R30.1).
   if (!syncAvailable()) return activationCard(app);
 
@@ -63,11 +70,29 @@ export function renderSyncCard(app: AppController): HTMLElement {
   ]);
 }
 
+// Staff device: sync by scanning a fresh 1-hour clinic code from the admin. The clinic's data
+// stays local between syncs; the token is never stored.
+function staffSyncCard(app: AppController, session: ReturnType<typeof getStaffSession>): HTMLElement {
+  return card([
+    cardHeader("cloud", "Cloud sync"),
+    el("div", { class: "sub", style: "margin-bottom:12px;color:var(--brand-dark)" }, [icon("check", 15), `Joined ${session?.clinic ?? "your clinic"}`]),
+    el("p", { class: "hint", style: "margin:0 0 12px" }, [
+      "Scan the clinic code your admin shows at checkout to send and receive the day's entries. Each code works for one hour.",
+    ]),
+    el("button", { class: "btn", onclick: () => openStaffSync(app) }, [icon("cloud"), "Scan clinic code & sync"]),
+  ]);
+}
+
 // Admin generates a QR carrying the current 1-hour access token for staff to scan.
 async function shareStaffToken(app: AppController, p: DrivePort): Promise<void> {
   const token = p.getAccessToken();
   if (!token) { message(app, "Not connected", "Sign in to Google Drive first."); return; }
-  const payload = JSON.stringify({ t: "physio-staff-token", token, at: Date.now() });
+  const act = getActivation();
+  const payload = JSON.stringify({
+    t: "physio-staff-token", token,
+    clientId: act?.clientId ?? "", folderName: act?.folderName,
+    clinic: app.repo.get().facility?.name, at: Date.now(),
+  });
   const img = el("img", { class: "qr", alt: "Staff sync code" }) as HTMLImageElement;
   try { img.src = await QRCode.toDataURL(payload, { margin: 1, width: 220 }); } catch { /* ignore */ }
   app.openSheet("Share with staff", [

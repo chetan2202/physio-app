@@ -16,6 +16,7 @@ import { newId, newInviteCode } from "../domain/ids.js";
 import { SEED_AILMENTS } from "../domain/seed-ailments.js";
 import { SEED_PLANS } from "../domain/seed-plans.js";
 import { getAll, put, remove } from "./idb.js";
+import { getCurrentMemberId, setCurrentMemberId } from "./identity.js";
 
 export interface Snapshot {
   facility?: Facility;
@@ -67,9 +68,15 @@ export class Repository {
       getAll<PlanTemplate>("plans"),
     ]);
     const merged = await this.ensureSeedAilments(ailments);
+    const savedId = getCurrentMemberId();
+    // This device's identity wins by persisted id; fall back to the flag for pre-sync installs.
+    const current = (savedId && members.find((m) => m.id === savedId)) || members.find((m) => m.isCurrentUser);
+    // Lock in the resolved id before any peer (also flagged isCurrentUser) syncs in and makes the
+    // flag ambiguous — self-heals existing single-device installs that predate the persisted id.
+    if (!savedId && current) setCurrentMemberId(current.id);
     this.snap = {
       facility: facilities[0],
-      currentMember: members.find((m) => m.isCurrentUser),
+      currentMember: current,
       members,
       invites,
       patients,
@@ -115,9 +122,31 @@ export class Repository {
     };
     await put("facility", facility);
     await put("members", admin);
+    setCurrentMemberId(admin.id);
     this.snap.facility = facility;
     this.snap.currentMember = admin;
     this.snap.members = [admin];
+  }
+
+  // Join an existing clinic as staff on a fresh device: adopt the pulled clinic data, then add
+  // this device's own staff member and record it as the current identity (R33). The peer bundles
+  // are pulled from the admin's Drive by the caller and merged in first.
+  async joinAsStaff(name: string, peers: ExportBundle[]): Promise<void> {
+    for (const bundle of peers) await this.mergeBundle(bundle);
+    const facility = this.requireFacility();
+    const now = Date.now();
+    const staff: Member = {
+      id: newId(),
+      facilityId: facility.id,
+      name,
+      role: "staff",
+      isCurrentUser: true,
+      joinedAt: now,
+      updatedAt: now,
+    };
+    await put("members", staff);
+    setCurrentMemberId(staff.id);
+    await this.load();
   }
 
   async createInvite(role: Role): Promise<InviteCode> {

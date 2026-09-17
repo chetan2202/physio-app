@@ -6,6 +6,7 @@ import type { AppController } from "../app.js";
 import { el, icon } from "../dom.js";
 import { enterPatientMode } from "../../patient/store.js";
 import { mountPatientApp } from "./patient-app.js";
+import { openStaffJoin } from "./staff-join.js";
 
 export function renderSetup(app: AppController): HTMLElement {
   let logoDataUrl: string | undefined;
@@ -48,15 +49,20 @@ export function renderSetup(app: AppController): HTMLElement {
       el("div", { style: "height:20px" }),
       submit,
     ]),
-    el("div", { class: "hint", style: "margin-top:22px;text-align:center" }, ["Are you a patient?"]),
+    el("div", { class: "hint", style: "margin-top:22px;text-align:center" }, ["Joining an existing clinic?"]),
     el("button", {
       class: "btn ghost",
       style: "margin-top:6px",
+      onclick: () => openStaffJoin(app),
+    }, [icon("users"), "Join as staff with a code"]),
+    el("button", {
+      class: "btn ghost",
+      style: "margin-top:8px",
       onclick() {
         enterPatientMode();
         const root = document.querySelector<HTMLDivElement>("#app");
         if (root) mountPatientApp(root);
       },
-    }, [icon("users"), "I have a code from my clinic"]),
+    }, [icon("user"), "I'm a patient with a code"]),
   ]);
 }
