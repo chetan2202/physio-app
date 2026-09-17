@@ -1,9 +1,11 @@
 // Patient detail: profile + a single month calendar carrying both attendance and payment
 // per day (long-press or tap a day to edit both), plus a "no dues" action (R69-R71).
 
+import QRCode from "qrcode";
 import type { AppController } from "../app.js";
 import type { Patient } from "../../domain/types.js";
 import { canAddPatient, canMarkAttendance, canMarkFees, scheduleLabel } from "../../domain/types.js";
+import { encodeFamily, type FamilyBundle } from "../../patient/bundle.js";
 import { el, icon, todayISO } from "../dom.js";
 import { openPatientForm } from "./patient-form.js";
 
@@ -59,16 +61,21 @@ export function renderPatient(app: AppController, patientId: string): HTMLElemen
     familyRow(app, p),
   ]);
 
-  const noDues = canMarkFees(role) && dueVisits.length
-    ? el("button", {
-        class: "btn secondary", style: "margin-top:16px",
-        async onclick() { await app.repo.markAllDuePaid(patientId); app.render(); },
-      }, [icon("wallet"), `Mark no dues (${dueVisits.length})`])
-    : null;
+  const actions = el("div", { style: "display:flex;gap:10px;margin-top:16px" }, [
+    canMarkFees(role) && dueVisits.length
+      ? el("button", {
+          class: "btn secondary", style: "flex:1",
+          async onclick() { await app.repo.markAllDuePaid(patientId); app.render(); },
+        }, [icon("wallet"), `No dues (${dueVisits.length})`])
+      : null,
+    canAddPatient(role)
+      ? el("button", { class: "btn secondary", style: "flex:1", onclick: () => openFamilyShare(app, patientId) }, [icon("users"), "Share with patient"])
+      : null,
+  ]);
 
   return el("div", {}, [
     profile,
-    noDues,
+    actions,
     el("div", { class: "section-title" }, [`Attendance & payments (${visits.length} visits · ${dueVisits.length} due)`]),
     renderCalendar(app, patientId),
     legend(),
@@ -233,6 +240,38 @@ export function openMarkFees(app: AppController, patientId: string): void {
     el("label", {}, ["Amount collected (optional)"]), amount,
     el("div", { style: "height:16px" }), save,
   ]);
+}
+
+// Admin: generate a QR carrying this patient's family record for the patient app (R32).
+async function openFamilyShare(app: AppController, patientId: string): Promise<void> {
+  const p = app.repo.patientById(patientId);
+  const data = app.repo.familyDataFor(patientId);
+  const bundle: FamilyBundle = { t: "physio-family", v: 1, generatedAt: Date.now(), clinic: app.repo.get().facility?.name, ...data };
+  const code = await encodeFamily(bundle);
+  const img = el("img", { class: "qr", alt: "Patient family code" }) as HTMLImageElement;
+  let fits = true;
+  try {
+    img.src = await QRCode.toDataURL(code, { margin: 1, width: 300, errorCorrectionLevel: "L" });
+  } catch { fits = false; }
+  app.openSheet("Share with patient", fits
+    ? [
+        el("p", { class: "hint" }, [`The patient scans this in their app to receive ${p?.name ?? "the patient"}'s family record (${data.patients.length} profile(s)) — or saves it and opens it from their gallery.`]),
+        img,
+        el("button", { class: "btn secondary", onclick: () => downloadDataUrl(`physio-family-${todayISO()}.png`, img.src) }, [icon("wallet"), "Download image"]),
+      ]
+    : [
+        el("p", { class: "hint" }, ["There's too much history to fit in one QR code yet (multi-part codes are coming). A patient with a shorter history will fit."]),
+        el("button", { class: "btn", onclick: () => app.closeSheet() }, ["Close"]),
+      ]);
+}
+
+function downloadDataUrl(filename: string, dataUrl: string): void {
+  const a = document.createElement("a");
+  a.href = dataUrl;
+  a.download = filename;
+  document.body.append(a);
+  a.click();
+  a.remove();
 }
 
 function formatDate(iso: string): string {

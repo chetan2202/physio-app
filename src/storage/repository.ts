@@ -182,6 +182,20 @@ export class Repository {
     return this.snap.patients.filter((p) => p.id !== patient.id && p.phone?.trim() === phone);
   }
 
+  // All data for a patient's family (the patient + phone-mates + their visits/payments) —
+  // the payload shared with the patient app via QR (R32).
+  familyDataFor(patientId: string): { patients: Patient[]; attendance: Attendance[]; payments: Payment[] } {
+    const p = this.patientById(patientId);
+    if (!p) return { patients: [], attendance: [], payments: [] };
+    const family = [p, ...this.familyOf(p)];
+    const ids = new Set(family.map((f) => f.id));
+    return {
+      patients: family,
+      attendance: this.snap.attendance.filter((a) => ids.has(a.patientId)),
+      payments: this.snap.payments.filter((pay) => ids.has(pay.patientId)),
+    };
+  }
+
   // Patients already on file with this phone (for the family hint when adding/editing).
   patientsWithPhone(phone: string, excludeId?: string): Patient[] {
     const norm = phone.trim();
