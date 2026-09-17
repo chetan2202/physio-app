@@ -73,8 +73,8 @@ function backupCard(app: AppController): HTMLElement {
 
   return el("div", { class: "card", style: "padding:16px" }, [
     el("p", { class: "hint", style: "margin:0 0 12px" }, [
-      "Your data is stored on this device only. Export a backup regularly, and keep the file safe — ",
-      "you can restore it here or on a new device.",
+      "Your data is stored on this device only. Export a backup regularly, then Restore it here or on a ",
+      "new phone to bring everything back. Cloud sync also restores everything automatically.",
     ]),
     el("div", { style: "display:flex;gap:10px" }, [
       el("button", {
@@ -84,10 +84,10 @@ function backupCard(app: AppController): HTMLElement {
           downloadText(`physio-backup-${todayISO()}.json`, json);
         },
       }, ["Export backup"]),
-      el("button", { class: "btn secondary", style: "flex:1", onclick: () => fileInput.click() }, ["Restore"]),
+      el("button", { class: "btn secondary", style: "flex:1", onclick: () => fileInput.click() }, ["Restore backup"]),
     ]),
     el("button", {
-      class: "btn secondary", style: "margin-top:10px",
+      class: "btn ghost", style: "margin-top:10px",
       onclick: () => downloadText(`physio-patients-${todayISO()}.csv`, app.repo.exportCsv(), "text/csv"),
     }, ["Download CSV (patients report)"]),
     fileInput,
