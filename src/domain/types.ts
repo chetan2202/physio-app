@@ -114,6 +114,21 @@ export function scheduleLabel(s: Schedule | undefined): string {
   return days.map((d) => WEEKDAYS[d]).join(", ");
 }
 
+// A dated task the admin assigns for the day (R34): optionally tied to a patient and/or a
+// specific staff member. Staff mark it done. Synced (last-writer-wins on doneAt/edits).
+export interface DailyTask {
+  id: string;
+  facilityId: string;
+  date: string; // ISO date the task is for
+  text: string;
+  patientId?: string; // optional linked patient
+  assignedMemberId?: string; // responsible member; unset = anyone on the team
+  createdByMemberId: string;
+  doneAt?: number; // completion time (unset = open)
+  createdAt: number;
+  updatedAt?: number;
+}
+
 export interface Attendance {
   id: string;
   facilityId: string;
