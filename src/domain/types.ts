@@ -129,6 +129,19 @@ export interface DailyTask {
   updatedAt?: number;
 }
 
+// A member's end-of-day note (R35): one editable note per member per day. The id is
+// deterministic (facility:date:member) so the same member's edits from two devices merge cleanly
+// (last-writer-wins). Admin reads the whole team's notes.
+export interface DailyNote {
+  id: string;
+  facilityId: string;
+  date: string; // the day the note is about
+  memberId: string; // author
+  text: string;
+  createdAt: number;
+  updatedAt?: number;
+}
+
 export interface Attendance {
   id: string;
   facilityId: string;

@@ -2,9 +2,9 @@
 // type, all keyed by `id` (or `code` for invites). No external dependency.
 
 const DB_NAME = "physio-app";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
-export const STORES = ["facility", "members", "invites", "patients", "attendance", "payments", "ailments", "plans", "tasks"] as const;
+export const STORES = ["facility", "members", "invites", "patients", "attendance", "payments", "ailments", "plans", "tasks", "notes"] as const;
 export type StoreName = (typeof STORES)[number];
 
 const KEY_PATH: Record<StoreName, string> = {
@@ -17,6 +17,7 @@ const KEY_PATH: Record<StoreName, string> = {
   ailments: "id",
   plans: "id",
   tasks: "id",
+  notes: "id",
 };
 
 let dbPromise: Promise<IDBDatabase> | null = null;

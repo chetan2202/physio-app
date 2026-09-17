@@ -2,7 +2,7 @@
 // meant for them (or unassigned) and mark them done; everything syncs with the clinic.
 
 import type { AppController } from "../app.js";
-import type { DailyTask } from "../../domain/types.js";
+import type { DailyNote, DailyTask } from "../../domain/types.js";
 import { canManageMembers } from "../../domain/types.js";
 import { el, icon, todayISO } from "../dom.js";
 
@@ -21,6 +21,7 @@ export function renderToday(app: AppController): HTMLElement {
     tasks.length
       ? el("div", { class: "card list" }, [...open, ...done].map((t) => taskRow(app, t)))
       : el("div", { class: "empty" }, [icon("check", 40), el("div", {}, ["No tasks for today."]), role === "admin" ? el("div", { class: "hint" }, ["Assign a task to your team below."]) : null]),
+    notesSection(app, today),
     el("div", { style: "height:72px" }),
   ]);
 
@@ -59,6 +60,51 @@ function taskRow(app: AppController, t: DailyTask): HTMLElement {
         el("div", { class: "sub" }, [sub]),
       ]),
     ]),
+  ]);
+}
+
+// End-of-day notes (R35): each member writes their own note; the whole team (and the admin) can
+// read the day's notes. Saved locally and pushed on the next sync.
+function notesSection(app: AppController, date: string): HTMLElement {
+  const me = app.repo.get().currentMember;
+  const mine = app.repo.myNoteFor(date);
+  const others = app.repo.notesFor(date).filter((n) => n.memberId !== me?.id);
+
+  const box = el("textarea", {
+    rows: "3", placeholder: "How did the day go? Anything the team should know…",
+    style: "width:100%;resize:vertical;font:inherit;padding:10px;border-radius:12px;border:1px solid var(--border,#d9e2df);background:var(--surface)",
+  }) as HTMLTextAreaElement;
+  box.value = mine?.text ?? "";
+
+  const status = el("span", { class: "hint" }, []);
+  const save = el("button", {
+    class: "btn secondary", style: "width:auto",
+    async onclick() {
+      await app.repo.setMyNote(date, box.value);
+      status.textContent = "Saved";
+      setTimeout(() => { status.textContent = ""; }, 1500);
+    },
+  }, ["Save note"]);
+
+  return el("div", {}, [
+    el("div", { class: "section-title" }, ["End-of-day notes"]),
+    el("div", { class: "card", style: "padding:16px" }, [
+      me ? el("div", {}, [
+        el("label", {}, ["My note"]),
+        box,
+        el("div", { style: "display:flex;align-items:center;gap:10px;margin-top:8px" }, [save, status]),
+      ]) : null,
+      ...others.map((n) => noteRow(app, n)),
+      !me && !others.length ? el("p", { class: "hint" }, ["No notes yet."]) : null,
+    ]),
+  ]);
+}
+
+function noteRow(app: AppController, n: DailyNote): HTMLElement {
+  const author = app.repo.memberById(n.memberId);
+  return el("div", { style: "margin-top:14px;border-top:1px solid var(--border,#eef2f1);padding-top:12px" }, [
+    el("div", { class: "sub", style: "font-weight:600" }, [author?.name ?? "Team member"]),
+    el("div", { class: "sub", style: "white-space:pre-wrap;margin-top:4px" }, [n.text]),
   ]);
 }
 

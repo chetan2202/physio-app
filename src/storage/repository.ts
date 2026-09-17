@@ -4,6 +4,7 @@
 import type {
   Ailment,
   Attendance,
+  DailyNote,
   DailyTask,
   Facility,
   InviteCode,
@@ -30,6 +31,7 @@ export interface Snapshot {
   ailments: Ailment[];
   plans: PlanTemplate[];
   tasks: DailyTask[];
+  notes: DailyNote[];
 }
 
 // A full, portable backup of a clinic's data. Also the payload the Drive backup will
@@ -46,6 +48,7 @@ export interface ExportBundle {
   ailments?: Ailment[];
   plans?: PlanTemplate[];
   tasks?: DailyTask[];
+  notes?: DailyNote[];
 }
 
 export class Repository {
@@ -58,10 +61,11 @@ export class Repository {
     ailments: [],
     plans: [],
     tasks: [],
+    notes: [],
   };
 
   async load(): Promise<Snapshot> {
-    const [facilities, members, invites, patients, attendance, payments, ailments, plans, tasks] = await Promise.all([
+    const [facilities, members, invites, patients, attendance, payments, ailments, plans, tasks, notes] = await Promise.all([
       getAll<Facility>("facility"),
       getAll<Member>("members"),
       getAll<InviteCode>("invites"),
@@ -71,6 +75,7 @@ export class Repository {
       getAll<Ailment>("ailments"),
       getAll<PlanTemplate>("plans"),
       getAll<DailyTask>("tasks"),
+      getAll<DailyNote>("notes"),
     ]);
     const merged = await this.ensureSeedAilments(ailments);
     const savedId = getCurrentMemberId();
@@ -90,6 +95,7 @@ export class Repository {
       ailments: merged,
       plans,
       tasks,
+      notes,
     };
     return this.snap;
   }
@@ -224,6 +230,42 @@ export class Repository {
       .filter((t) => t.date === date)
       .filter((t) => !memberId || !t.assignedMemberId || t.assignedMemberId === memberId)
       .sort((a, b) => b.createdAt - a.createdAt);
+  }
+
+  // --- Daily notes (R35) -----------------------------------------------------
+
+  // Upsert the current member's note for a day (empty text removes it). Deterministic id keeps
+  // the same member's note a single record across devices, so sync is a clean last-writer-wins.
+  async setMyNote(date: string, text: string): Promise<void> {
+    const facility = this.requireFacility();
+    const me = this.requireMember();
+    const id = `${facility.id}:${date}:${me.id}`;
+    const body = text.trim();
+    if (!body) {
+      if (this.snap.notes.some((n) => n.id === id)) {
+        await remove("notes", id);
+        this.snap.notes = this.snap.notes.filter((n) => n.id !== id);
+      }
+      return;
+    }
+    const existing = this.snap.notes.find((n) => n.id === id);
+    const note: DailyNote = {
+      id, facilityId: facility.id, date, memberId: me.id, text: body,
+      createdAt: existing?.createdAt ?? Date.now(), updatedAt: Date.now(),
+    };
+    await put("notes", note);
+    this.snap.notes = existing
+      ? this.snap.notes.map((n) => (n.id === id ? note : n))
+      : [...this.snap.notes, note];
+  }
+
+  myNoteFor(date: string): DailyNote | undefined {
+    const me = this.snap.currentMember;
+    return me ? this.snap.notes.find((n) => n.date === date && n.memberId === me.id) : undefined;
+  }
+
+  notesFor(date: string): DailyNote[] {
+    return this.snap.notes.filter((n) => n.date === date).sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
   }
 
   // --- Patients --------------------------------------------------------------
@@ -483,6 +525,7 @@ export class Repository {
       ailments: s.ailments.filter((a) => a.source === "custom"),
       plans: s.plans,
       tasks: s.tasks,
+      notes: s.notes,
     };
   }
 
@@ -533,6 +576,7 @@ export class Repository {
     for (const a of bundle.ailments ?? []) { await put("ailments", a); records++; }
     for (const p of bundle.plans ?? []) { await put("plans", p); records++; }
     for (const t of bundle.tasks ?? []) { await put("tasks", t); records++; }
+    for (const n of bundle.notes ?? []) { await put("notes", n); records++; }
     await this.load();
     return { records };
   }
@@ -549,7 +593,7 @@ export class Repository {
 
     // Last-writer-wins for editable, id-keyed collections.
     const lww = async <T extends { id: string; updatedAt?: number; createdAt?: number }>(
-      store: "members" | "patients" | "plans" | "tasks", incoming: T[], local: T[],
+      store: "members" | "patients" | "plans" | "tasks" | "notes", incoming: T[], local: T[],
     ) => {
       const byId = new Map(local.map((r) => [r.id, r]));
       for (const inc of incoming) {
@@ -561,6 +605,7 @@ export class Repository {
     await lww("patients", bundle.patients ?? [], this.snap.patients);
     await lww("plans", bundle.plans ?? [], this.snap.plans);
     await lww("tasks", bundle.tasks ?? [], this.snap.tasks);
+    await lww("notes", bundle.notes ?? [], this.snap.notes);
 
     // Union (add-if-absent) for additive, id-keyed collections.
     const union = async <T extends { id: string }>(store: "attendance" | "payments" | "ailments", incoming: T[], local: T[]) => {
