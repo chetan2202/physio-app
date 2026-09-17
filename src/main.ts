@@ -2,6 +2,8 @@ import "./styles.css";
 import { registerSW } from "virtual:pwa-register";
 import { Repository } from "./storage/repository.js";
 import { AppController } from "./ui/app.js";
+import { isPatientMode } from "./patient/store.js";
+import { mountPatientApp } from "./ui/views/patient-app.js";
 
 async function boot(): Promise<void> {
   const root = document.querySelector<HTMLDivElement>("#app");
@@ -15,6 +17,12 @@ async function boot(): Promise<void> {
       controller?.showUpdateAvailable(() => void updateSW(true));
     },
   });
+
+  // Patient devices run a separate read-only app — no clinic data, no IndexedDB.
+  if (isPatientMode()) {
+    mountPatientApp(root);
+    return;
+  }
 
   try {
     const repo = new Repository();

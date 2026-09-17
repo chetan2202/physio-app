@@ -4,6 +4,8 @@
 
 import type { AppController } from "../app.js";
 import { el, icon } from "../dom.js";
+import { enterPatientMode } from "../../patient/store.js";
+import { mountPatientApp } from "./patient-app.js";
 
 export function renderSetup(app: AppController): HTMLElement {
   let logoDataUrl: string | undefined;
@@ -46,5 +48,15 @@ export function renderSetup(app: AppController): HTMLElement {
       el("div", { style: "height:20px" }),
       submit,
     ]),
+    el("div", { class: "hint", style: "margin-top:22px;text-align:center" }, ["Are you a patient?"]),
+    el("button", {
+      class: "btn ghost",
+      style: "margin-top:6px",
+      onclick() {
+        enterPatientMode();
+        const root = document.querySelector<HTMLDivElement>("#app");
+        if (root) mountPatientApp(root);
+      },
+    }, [icon("users"), "I have a code from my clinic"]),
   ]);
 }
